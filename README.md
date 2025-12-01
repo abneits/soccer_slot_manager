@@ -20,10 +20,10 @@ register, invite guests, and track long-term performance.
 
 ### 🔐 User Management
 
--   Personal accounts with **email + password** authentication\
--   Account creation requires **sponsorship** from an existing member\
--   Only registered users can sign up for the next match\
--   Users can add **unlimited guests** to each session\
+-   Personal accounts with **email + password** authentication
+-   Account creation requires **sponsorship** from an existing member
+-   Only registered users can sign up for the next match
+-   Users can add **unlimited guests** to each session
 -   Registrations (personal or guests) can be **edited or removed** by
     their creator
 
@@ -64,25 +64,26 @@ Each document corresponds to a weekly session:
 
 ## 📅 Slot Management (Main Page)
 
-The home screen provides: - Date of next Wednesday session\
-- List of registered players\
-- Index of added guests\
-- Team compositions (after game)\
+The home screen provides: 
+- Date of next Wednesday session
+- List of registered players
+- Index of added guests
+- Team compositions (after game)
 - Final match result
 
 ## 📊 Statistics
 
 The platform automatically computes:
 
-### 🥇 Most Wins
+#### 🥇 Most Wins
 
 Player with the highest number of match victories.
 
-### 📆 Best Attendance
+#### 📆 Best Attendance
 
 Player who attended the most sessions.
 
-### 🤝 Top Contributor
+#### 🤝 Top Contributor
 
 User who invited or sponsored the most new participants.
 
