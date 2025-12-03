@@ -87,6 +87,29 @@ Player who attended the most sessions.
 
 User who invited or sponsored the most new participants.
 
+## 🐳 Docker Deployment
+
+Quick start with Docker:
+
+```bash
+# Clone and setup
+git clone <repository-url>
+cd soccer_slot_manager
+
+# Configure environment
+cp .env.example .env
+# Edit .env and set JWT_SECRET
+
+# Start all services
+docker-compose up -d
+
+# Access the app
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:5000/api
+```
+
+See [DOCKER.md](DOCKER.md) for complete Docker deployment guide.
+
 ## 📜 License
 
 This project is licensed under the **MIT License**.
