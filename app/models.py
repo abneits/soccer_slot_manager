@@ -1,0 +1,48 @@
+from pydantic import BaseModel, Field, field_validator
+from typing import List
+from datetime import datetime
+
+
+class Slot(BaseModel):
+    """MongoDB Slot Document Model"""
+    date: datetime = Field(..., description="ISO Date for the Wednesday at 19:00")
+    players: List[str] = Field(default_factory=list, description="List of player names")
+    is_full: bool = Field(default=False, description="True if player count >= 10")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "date": "2025-12-10T19:00:00",
+                "players": ["Alice", "Bob", "Charlie"],
+                "is_full": False
+            }
+        }
+
+
+class PlayerRegistration(BaseModel):
+    """Request model for player registration"""
+    name: str = Field(..., min_length=1, max_length=100, description="Player name")
+
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate that name is not empty or whitespace only"""
+        if not v or not v.strip():
+            raise ValueError("Player name cannot be empty")
+        return v.strip()
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "name": "John Doe"
+            }
+        }
+
+
+class SlotResponse(BaseModel):
+    """Response model for slot data"""
+    date: str = Field(..., description="ISO formatted date string")
+    players: List[str] = Field(..., description="List of player names")
+    is_full: bool = Field(..., description="True if player count >= 10")
+    player_count: int = Field(..., description="Current number of players")
+    max_players: int = Field(default=10, description="Maximum allowed players")

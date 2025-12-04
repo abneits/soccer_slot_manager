@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soccer Slot Manager</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        #app {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .match-date {
+            text-align: center;
+            color: #667eea;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 20px auto;
+            text-align: center;
+        }
+
+        .badge-available {
+            background: #4caf50;
+            color: white;
+        }
+
+        .badge-full {
+            background: #f44336;
+            color: white;
+            font-size: 1.3em;
+        }
+
+        .players-section {
+            margin: 30px 0;
+        }
+
+        .players-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .players-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+
+        .players-table th,
+        .players-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .players-table th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+
+        .players-table tr:hover {
+            background: #f5f5f5;
+        }
+
+        .empty-slot {
+            color: #999;
+            font-style: italic;
+        }
+
+        .registration-form {
+            margin-top: 30px;
+        }
+
+        .registration-form h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.1s;
+        }
+
+        .submit-btn:hover {
+            background: #5568d3;
+        }
+
+        .submit-btn:active {
+            transform: scale(0.98);
+        }
+
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #c62828;
+        }
+
+        .success-message {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2e7d32;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+
+        .player-count {
+            text-align: center;
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }
+
+        .player-count strong {
+            color: #667eea;
+        }
+
+        @media (max-width: 600px) {
+            #app {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .match-date {
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div v-if="loading" class="loading">
+            ⚽ Chargement...
+        </div>
+
+        <div v-else>
+            <h1>⚽ Soccer Slot Manager</h1>
+            <div class="match-date">
+                📅 {{ formattedDate }}
+            </div>
+
+            <div class="player-count">
+                <strong>{{ slot.player_count }} / {{ slot.max_players }}</strong> joueurs inscrits
+            </div>
+
+            <div v-if="slot.is_full" class="status-badge badge-full">
+                🔒 COMPLET / FULL
+            </div>
+
+            <div class="players-section">
+                <h2>Liste des Joueurs</h2>
+                <table class="players-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Nom du Joueur</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="index in 10" :key="index">
+                            <td>{{ index }}</td>
+                            <td :class="{ 'empty-slot': !slot.players[index - 1] }">
+                                {{ slot.players[index - 1] || '...' }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div v-if="errorMessage" class="error-message">
+                ❌ {{ errorMessage }}
+            </div>
+
+            <div v-if="successMessage" class="success-message">
+                ✅ {{ successMessage }}
+            </div>
+
+            <div v-if="!slot.is_full" class="registration-form">
+                <h2>S'inscrire au Match</h2>
+                <form @submit.prevent="registerPlayer">
+                    <div class="form-group">
+                        <label for="playerName">Nom du Joueur</label>
+                        <input
+                            type="text"
+                            id="playerName"
+                            v-model="playerName"
+                            placeholder="Entrez votre nom"
+                            required
+                            :disabled="submitting"
+                        />
+                    </div>
+                    <button type="submit" class="submit-btn" :disabled="submitting || !playerName.trim()">
+                        {{ submitting ? '⏳ Inscription...' : '✅ S\'inscrire' }}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    slot: {
+                        date: '',
+                        players: [],
+                        is_full: false,
+                        player_count: 0,
+                        max_players: 10
+                    },
+                    playerName: '',
+                    loading: true,
+                    submitting: false,
+                    errorMessage: '',
+                    successMessage: ''
+                };
+            },
+            computed: {
+                formattedDate() {
+                    if (!this.slot.date) return '';
+                    
+                    const date = new Date(this.slot.date);
+                    const options = {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    };
+                    
+                    return date.toLocaleDateString('fr-FR', options);
+                }
+            },
+            methods: {
+                async fetchSlot() {
+                    try {
+                        this.loading = true;
+                        this.errorMessage = '';
+                        
+                        const response = await fetch('/api/current-slot');
+                        
+                        if (!response.ok) {
+                            throw new Error('Erreur lors du chargement du slot');
+                        }
+                        
+                        this.slot = await response.json();
+                    } catch (error) {
+                        this.errorMessage = error.message;
+                        console.error('Error fetching slot:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async registerPlayer() {
+                    if (!this.playerName.trim()) {
+                        this.errorMessage = 'Le nom ne peut pas être vide';
+                        return;
+                    }
+
+                    try {
+                        this.submitting = true;
+                        this.errorMessage = '';
+                        this.successMessage = '';
+                        
+                        const response = await fetch('/api/register', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                name: this.playerName.trim()
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (!response.ok) {
+                            throw new Error(data.detail || 'Erreur lors de l\'inscription');
+                        }
+                        
+                        // Update slot with new data
+                        this.slot = data;
+                        this.successMessage = `${this.playerName} a été inscrit avec succès !`;
+                        this.playerName = '';
+                        
+                        // Clear success message after 3 seconds
+                        setTimeout(() => {
+                            this.successMessage = '';
+                        }, 3000);
+                        
+                    } catch (error) {
+                        this.errorMessage = error.message;
+                        console.error('Error registering player:', error);
+                    } finally {
+                        this.submitting = false;
+                    }
+                }
+            },
+            mounted() {
+                this.fetchSlot();
+                
+                // Auto-refresh every 30 seconds
+                setInterval(() => {
+                    this.fetchSlot();
+                }, 30000);
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

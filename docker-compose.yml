@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  soccer-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    platform: linux/arm64
+    container_name: soccer-slot-manager
+    ports:
+      - "8000:8000"
+    environment:
+      # MongoDB connection string
+      # Replace with your actual MongoDB Atlas URI
+      - MONGO_URI=${MONGO_URI:-mongodb+srv://username:password@cluster.mongodb.net/soccer_slots?retryWrites=true&w=majority}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - soccer-network
+
+networks:
+  soccer-network:
+    driver: bridge
