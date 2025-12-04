@@ -7,14 +7,12 @@ class Slot(BaseModel):
     """MongoDB Slot Document Model"""
     date: datetime = Field(..., description="ISO Date for the Wednesday at 19:00")
     players: List[str] = Field(default_factory=list, description="List of player names")
-    is_full: bool = Field(default=False, description="True if player count >= 10")
 
     class Config:
         json_schema_extra = {
             "example": {
                 "date": "2025-12-10T19:00:00",
-                "players": ["Alice", "Bob", "Charlie"],
-                "is_full": False
+                "players": ["Alice", "Bob", "Charlie"]
             }
         }
 
@@ -43,6 +41,5 @@ class SlotResponse(BaseModel):
     """Response model for slot data"""
     date: str = Field(..., description="ISO formatted date string")
     players: List[str] = Field(..., description="List of player names")
-    is_full: bool = Field(..., description="True if player count >= 10")
     player_count: int = Field(..., description="Current number of players")
     max_players: int = Field(default=10, description="Maximum allowed players")

@@ -132,8 +132,7 @@ async def get_current_slot():
         # Create new slot
         new_slot = Slot(
             date=target_date,
-            players=[],
-            is_full=False
+            players=[]
         )
         
         await collection.insert_one(new_slot.model_dump())
@@ -143,7 +142,6 @@ async def get_current_slot():
     return SlotResponse(
         date=slot_doc["date"].isoformat(),
         players=slot_doc["players"],
-        is_full=slot_doc["is_full"],
         player_count=len(slot_doc["players"]),
         max_players=MAX_PLAYERS
     )
@@ -175,14 +173,13 @@ async def register_player(registration: PlayerRegistration):
         # Create slot if it doesn't exist
         new_slot = Slot(
             date=target_date,
-            players=[],
-            is_full=False
+            players=[]
         )
         await collection.insert_one(new_slot.model_dump())
         slot_doc = new_slot.model_dump()
     
-    # Check if slot is full
-    if slot_doc["is_full"] or len(slot_doc["players"]) >= MAX_PLAYERS:
+    # Check if slot is full (based on player count)
+    if len(slot_doc["players"]) >= MAX_PLAYERS:
         raise HTTPException(
             status_code=400,
             detail="Slot is full. Maximum 10 players allowed."
@@ -198,15 +195,13 @@ async def register_player(registration: PlayerRegistration):
     
     # Add player to slot
     updated_players = slot_doc["players"] + [player_name]
-    is_full = len(updated_players) >= MAX_PLAYERS
     
     # Update database
     await collection.update_one(
         {"date": target_date},
         {
             "$set": {
-                "players": updated_players,
-                "is_full": is_full
+                "players": updated_players
             }
         }
     )
@@ -215,7 +210,6 @@ async def register_player(registration: PlayerRegistration):
     return SlotResponse(
         date=target_date.isoformat(),
         players=updated_players,
-        is_full=is_full,
         player_count=len(updated_players),
         max_players=MAX_PLAYERS
     )

@@ -232,7 +232,7 @@
                 <strong><span v-text="slot.player_count"></span> / <span v-text="slot.max_players"></span></strong> joueurs inscrits
             </div>
 
-            <div v-if="slot.is_full" class="status-badge badge-full">
+            <div v-if="isFull" class="status-badge badge-full">
                 🔒 COMPLET / FULL
             </div>
 
@@ -265,7 +265,7 @@
                 ✅ <span v-text="successMessage"></span>
             </div>
 
-            <div v-if="!slot.is_full" class="registration-form">
+            <div v-if="!isFull" class="registration-form">
                 <h2>S'inscrire au Match</h2>
                 <form @submit.prevent="registerPlayer">
                     <div class="form-group">
@@ -297,7 +297,6 @@
                     slot: {
                         date: '',
                         players: [],
-                        is_full: false,
                         player_count: 0,
                         max_players: 10
                     },
@@ -323,6 +322,9 @@
                     };
                     
                     return date.toLocaleDateString('fr-FR', options);
+                },
+                isFull() {
+                    return this.slot.player_count >= this.slot.max_players;
                 }
             },
             methods: {
