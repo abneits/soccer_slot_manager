@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Soccer Slot Manager</title>
+    <title>Play Arena</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
         * {
@@ -223,13 +223,13 @@
         </div>
 
         <div v-else>
-            <h1>⚽ Soccer Slot Manager</h1>
+            <h1>⚽ Play Arena</h1>
             <div class="match-date">
-                📅 {{ formattedDate }}
+                📅 <span v-text="formattedDate"></span>
             </div>
 
             <div class="player-count">
-                <strong>{{ slot.player_count }} / {{ slot.max_players }}</strong> joueurs inscrits
+                <strong><span v-text="slot.player_count"></span> / <span v-text="slot.max_players"></span></strong> joueurs inscrits
             </div>
 
             <div v-if="slot.is_full" class="status-badge badge-full">
@@ -247,9 +247,10 @@
                     </thead>
                     <tbody>
                         <tr v-for="index in 10" :key="index">
-                            <td>{{ index }}</td>
+                            <td v-text="index"></td>
                             <td :class="{ 'empty-slot': !slot.players[index - 1] }">
-                                {{ slot.players[index - 1] || '...' }}
+                                <span v-if="slot.players[index - 1]" v-text="slot.players[index - 1]"></span>
+                                <span v-else>...</span>
                             </td>
                         </tr>
                     </tbody>
@@ -257,11 +258,11 @@
             </div>
 
             <div v-if="errorMessage" class="error-message">
-                ❌ {{ errorMessage }}
+                ❌ <span v-text="errorMessage"></span>
             </div>
 
             <div v-if="successMessage" class="success-message">
-                ✅ {{ successMessage }}
+                ✅ <span v-text="successMessage"></span>
             </div>
 
             <div v-if="!slot.is_full" class="registration-form">
@@ -279,7 +280,8 @@
                         />
                     </div>
                     <button type="submit" class="submit-btn" :disabled="submitting || !playerName.trim()">
-                        {{ submitting ? '⏳ Inscription...' : '✅ S\'inscrire' }}
+                        <span v-if="submitting">⏳ Inscription...</span>
+                        <span v-else>✅ S'inscrire</span>
                     </button>
                 </form>
             </div>

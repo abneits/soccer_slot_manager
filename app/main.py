@@ -16,8 +16,8 @@ load_dotenv()
 
 # MongoDB Configuration
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
-DB_NAME = "soccer_slots"
-COLLECTION_NAME = "slots"
+DB_NAME = "Soccer-manager"
+COLLECTION_NAME = "Slots"
 
 # Constants
 MAX_PLAYERS = 10
