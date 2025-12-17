@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime, timedelta, timezone
@@ -8,7 +9,7 @@ from bson import ObjectId
 from typing import Optional
 import os
 import secrets
-from dotenv import load_dotenv
+from jinja2 import Environment, FileSystemLoader
 
 from app.models import (
     Slot, 
@@ -110,14 +111,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Setup Jinja2 templates
-templates = Jinja2Templates(
-    directory="app/templates",
+# Configure Jinja2 with custom delimiters to avoid conflict with Vue.js
+env = Environment(
+    loader=FileSystemLoader("app/templates"),
     variable_start_string='{[',
     variable_end_string=']}',
     block_start_string='{%',
     block_end_string='%}'
 )
+
+templates = Jinja2Templates(directory="app/templates", env=env)
 
 
 def get_db():
