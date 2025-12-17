@@ -111,7 +111,13 @@ app = FastAPI(
 )
 
 # Setup Jinja2 templates
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(
+    directory="app/templates",
+    variable_start_string='{[',
+    variable_end_string=']}',
+    block_start_string='{%',
+    block_end_string='%}'
+)
 
 
 def get_db():
