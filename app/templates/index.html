@@ -46,8 +46,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
-            margin-bottom: 30px;
+            margin: 20px 0;
         }
         
         th, td {
@@ -70,6 +69,7 @@
             font-weight: bold;
             color: #007bff;
             width: 50px;
+            text-align: center;
         }
         
         input[type="text"],
@@ -89,6 +89,7 @@
             cursor: pointer;
             font-size: 14px;
             transition: background-color 0.2s;
+            margin-top: 10px;
         }
         
         button:hover {
@@ -239,6 +240,10 @@
         .delete-btn:hover {
             background-color: #c82333;
         }
+        
+        .registration-section {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -289,7 +294,7 @@
                     </tbody>
                 </table>
                 
-                <div v-if="currentUser && !slot.is_full">
+                <div v-if="currentUser && !slot.is_full" class="registration-section">
                     <div v-if="!isUserRegistered">
                         <button @click="registerSelf">M'inscrire</button>
                     </div>
@@ -300,6 +305,7 @@
                             <input 
                                 v-model="guestName" 
                                 placeholder="Nom de l'invité"
+                                type="text"
                                 @keyup.enter="registerGuest"
                             />
                         </div>
@@ -321,7 +327,7 @@
                 <h2>Connexion</h2>
                 <div class="form-group">
                     <label>Nom d'utilisateur</label>
-                    <input v-model="loginForm.username" @keyup.enter="login" />
+                    <input v-model="loginForm.username" type="text" @keyup.enter="login" />
                 </div>
                 <div class="form-group">
                     <label>Code PIN (4 chiffres)</label>
@@ -341,7 +347,7 @@
                 <h2>Créer un compte</h2>
                 <div class="form-group">
                     <label>Nom d'utilisateur</label>
-                    <input v-model="signupForm.username" />
+                    <input v-model="signupForm.username" type="text" />
                 </div>
                 <div class="form-group">
                     <label>Code PIN (4 chiffres)</label>
@@ -349,7 +355,7 @@
                 </div>
                 <div class="form-group">
                     <label>Code d'invitation</label>
-                    <input v-model="signupForm.inviteToken" />
+                    <input v-model="signupForm.inviteToken" type="text" />
                 </div>
                 <div class="button-group">
                     <button @click="signup">Créer le compte</button>
@@ -571,7 +577,6 @@
                 }
             },
             mounted() {
-                // Check for stored user
                 const storedUser = localStorage.getItem('currentUser');
                 if (storedUser) {
                     this.currentUser = JSON.parse(storedUser);
