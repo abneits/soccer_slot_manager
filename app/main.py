@@ -1,17 +1,28 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from bson import ObjectId
 import os
 import secrets
 from dotenv import load_dotenv
-from bson import ObjectId
 
-from app.models import Slot, PlayerRegistration, SlotResponse
+from app.models import (
+    Slot, 
+    PlayerRegistration, 
+    SlotResponse,
+    User,
+    UserInDB,
+    InvitationToken,
+    UserRegistration,
+    LoginRequest,
+    LoginResponse,
+    InviteTokenResponse,
+    UserUpdateRequest,
+    GuestRegistration
+)
 
 # Load environment variables
 load_dotenv()
