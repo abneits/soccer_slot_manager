@@ -113,15 +113,20 @@ app = FastAPI(
 )
 
 # Configure Jinja2 with custom delimiters to avoid conflict with Vue.js
-env = Environment(
-    loader=FileSystemLoader("app/templates"),
-    variable_start_string='{[',
-    variable_end_string=']}',
-    block_start_string='{%',
-    block_end_string='%}'
-)
+class CustomJinja2Templates(Jinja2Templates):
+    def _create_env(self, directory, **env_options):
+        loader = FileSystemLoader(directory)
+        env = Environment(
+            loader=loader,
+            variable_start_string='{[',
+            variable_end_string=']}',
+            block_start_string='{%',
+            block_end_string='%}',
+            **env_options
+        )
+        return env
 
-templates = Jinja2Templates(directory="app/templates", env=env)
+templates = CustomJinja2Templates(directory="app/templates")
 
 
 def get_db():
