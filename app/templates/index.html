@@ -343,13 +343,16 @@
                     <a v-if="currentUser.role === 'admin'" href="/admin" class="admin-link">Tableau de bord admin</a>
                     <button @click="logout" style="margin-left: 10px;">Déconnexion</button>
                 </span>
-                <button v-else @click="showLoginModal = true">Se connecter</button>
+                <div v-else>
+                    <button @click="showLoginModal = true">Se connecter</button>
+                    <button @click="showSignupModal = true" style="margin-left: 10px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">Créer un compte</button>
+                </div>
             </div>
             
             <h1>⚽ Soccer Slot Manager</h1>
             
-            <div v-if="error" class="error">{{ error }}</div>
-            <div v-if="success" class="success">{{ success }}</div>
+            <div v-if="error && !showLoginModal && !showSignupModal" class="error">{{ error }}</div>
+            <div v-if="success && !showLoginModal && !showSignupModal" class="success">{{ success }}</div>
             
             <div v-if="slot">
                 <p><strong>Date du prochain match:</strong> {{ formatDate(slot.date) }}</p>
@@ -387,7 +390,7 @@
                         <button @click="registerSelf">M'inscrire</button>
                     </div>
                     
-                    <div v-if="currentUser.role === 'user'" class="guest-section">
+                    <div class="guest-section">
                         <h3>Ajouter un invité</h3>
                         <div class="form-group">
                             <input 
@@ -413,6 +416,10 @@
         <div class="modal" :class="{ show: showLoginModal }">
             <div class="modal-content">
                 <h2>Connexion</h2>
+                
+                <div v-if="error && showLoginModal" class="error">{{ error }}</div>
+                <div v-if="success && showLoginModal" class="success">{{ success }}</div>
+                
                 <div class="form-group">
                     <label>Nom d'utilisateur</label>
                     <input v-model="loginForm.username" type="text" @keyup.enter="login" />
@@ -423,8 +430,7 @@
                 </div>
                 <div class="button-group">
                     <button @click="login">Se connecter</button>
-                    <button @click="showLoginModal = false; showSignupModal = true;">S'inscrire</button>
-                    <button @click="showLoginModal = false; clearLoginForm();">Annuler</button>
+                    <button @click="showLoginModal = false; clearLoginForm(); clearError();">Annuler</button>
                 </div>
             </div>
         </div>
@@ -433,6 +439,10 @@
         <div class="modal" :class="{ show: showSignupModal }">
             <div class="modal-content">
                 <h2>Créer un compte</h2>
+                
+                <div v-if="error && showSignupModal" class="error">{{ error }}</div>
+                <div v-if="success && showSignupModal" class="success">{{ success }}</div>
+                
                 <div class="form-group">
                     <label>Nom d'utilisateur</label>
                     <input v-model="signupForm.username" type="text" />
@@ -447,7 +457,7 @@
                 </div>
                 <div class="button-group">
                     <button @click="signup">Créer le compte</button>
-                    <button @click="showSignupModal = false; clearSignupForm();">Annuler</button>
+                    <button @click="showSignupModal = false; clearSignupForm(); clearError();">Annuler</button>
                 </div>
             </div>
         </div>
@@ -537,8 +547,10 @@
                             this.success = 'Compte créé avec succès. Vous pouvez maintenant vous connecter.';
                             this.showSignupModal = false;
                             this.clearSignupForm();
-                            this.showLoginModal = true;
-                            setTimeout(() => this.success = '', 3000);
+                            setTimeout(() => {
+                                this.success = '';
+                                this.showLoginModal = true;
+                            }, 2000);
                         } else {
                             const data = await response.json();
                             this.error = data.detail;
@@ -662,6 +674,10 @@
                     this.signupForm.username = '';
                     this.signupForm.pin = '';
                     this.signupForm.inviteToken = '';
+                },
+                clearError() {
+                    this.error = '';
+                    this.success = '';
                 }
             },
             mounted() {

@@ -214,7 +214,7 @@
             
             <div class="header-actions">
                 <h2>Gestion des utilisateurs</h2>
-                <button @click="showInviteModal = true">Générer un code d'invitation</button>
+                <button @click="generateInvite">Générer un code d'invitation</button>
             </div>
             
             <table>
@@ -438,7 +438,6 @@
             },
             async mounted() {
                 await this.checkAuth();
-                this.showInviteModal = false;
             }
         }).mount('#app');
     </script>
