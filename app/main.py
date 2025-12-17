@@ -4,10 +4,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 from motor.motor_asyncio import AsyncIOMotorClient
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import os
+import secrets
 from dotenv import load_dotenv
+from bson import ObjectId
 
 from app.models import Slot, PlayerRegistration, SlotResponse
 
@@ -24,6 +26,10 @@ MAX_PLAYERS = 10
 MATCH_HOUR = 19
 MATCH_MINUTE = 0
 MATCH_DAY = 2  # Wednesday (0=Monday, 6=Sunday)
+
+# Add new collection names
+USERS_COLLECTION = "Users"
+INVITATIONS_COLLECTION = "InvitationTokens"
 
 
 # Global database client
@@ -106,10 +112,25 @@ def get_collection():
     return get_db()[COLLECTION_NAME]
 
 
+def get_users_collection():
+    """Get users collection"""
+    return db_client[USERS_COLLECTION]
+
+
+def get_invitations_collection():
+    """Get invitations collection"""
+    return db_client[INVITATIONS_COLLECTION]
+
+
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     """Serve the main HTML page"""
     return templates.TemplateResponse("index.html", {"request": request})
+
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page(request: Request):
+    return templates.TemplateResponse("admin.html", {"request": request})
 
 
 @app.get("/api/current-slot", response_model=SlotResponse)
@@ -147,71 +168,317 @@ async def get_current_slot():
     )
 
 
-@app.post("/api/register", response_model=SlotResponse)
-async def register_player(registration: PlayerRegistration):
-    """
-    Register a player for the current slot.
+# Authentication Endpoints
+
+@app.post("/api/auth/login", response_model=LoginResponse)
+async def login(request: LoginRequest):
+    users = get_users_collection()
+    user = await users.find_one({"username": request.username, "pin": request.pin})
     
-    Args:
-        registration: PlayerRegistration with player name
-        
-    Returns:
-        SlotResponse: Updated slot data
-        
-    Raises:
-        HTTPException: If slot is full or player already registered
-    """
-    collection = get_collection()
+    if not user:
+        return LoginResponse(success=False, message="Nom d'utilisateur ou code PIN incorrect")
     
-    # Calculate next Wednesday date
-    target_date = get_next_wednesday_at_19()
+    return LoginResponse(
+        success=True,
+        user={
+            "username": user["username"],
+            "role": user["role"]
+        },
+        message="Connexion réussie"
+    )
+
+@app.post("/api/auth/signup")
+async def signup(registration: UserRegistration):
+    users = get_users_collection()
+    invitations = get_invitations_collection()
     
-    # Get current slot
-    slot_doc = await collection.find_one({"date": target_date})
+    # Validate PIN format
+    if len(registration.pin) != 4 or not registration.pin.isdigit():
+        raise HTTPException(status_code=400, detail="Le code PIN doit contenir exactement 4 chiffres")
     
-    if not slot_doc:
-        # Create slot if it doesn't exist
-        new_slot = Slot(
-            date=target_date,
-            players=[]
-        )
-        await collection.insert_one(new_slot.model_dump())
-        slot_doc = new_slot.model_dump()
+    # Check if username already exists
+    existing_user = await users.find_one({"username": registration.username})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Ce nom d'utilisateur est déjà pris")
     
-    # Check if slot is full (based on player count)
-    if len(slot_doc["players"]) >= MAX_PLAYERS:
-        raise HTTPException(
-            status_code=400,
-            detail="Slot is full. Maximum 10 players allowed."
-        )
+    # Validate invitation token
+    token_doc = await invitations.find_one({"token": registration.inviteToken})
+    if not token_doc:
+        raise HTTPException(status_code=400, detail="Code d'invitation invalide")
     
-    # Check if player already registered
-    player_name = registration.name
-    if player_name in slot_doc["players"]:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Player '{player_name}' is already registered."
-        )
+    if datetime.now(timezone.utc) > token_doc["expiresAt"]:
+        raise HTTPException(status_code=400, detail="Ce code d'invitation a expiré")
     
-    # Add player to slot
-    updated_players = slot_doc["players"] + [player_name]
+    # Create user
+    new_user = {
+        "username": registration.username,
+        "pin": registration.pin,
+        "role": "user",
+        "invitedBy": token_doc["createdBy"]
+    }
     
-    # Update database
-    await collection.update_one(
-        {"date": target_date},
-        {
-            "$set": {
-                "players": updated_players
-            }
-        }
+    await users.insert_one(new_user)
+    
+    # Delete used token
+    await invitations.delete_one({"token": registration.inviteToken})
+    
+    return {"success": True, "message": "Compte créé avec succès"}
+
+
+# Admin Endpoints
+
+@app.get("/api/admin/users")
+async def get_all_users(admin_username: str):
+    users = get_users_collection()
+    
+    # Verify admin
+    admin = await users.find_one({"username": admin_username, "role": "admin"})
+    if not admin:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    
+    user_list = []
+    async for user in users.find({}):
+        user_list.append({
+            "id": str(user["_id"]),
+            "username": user["username"],
+            "role": user["role"],
+            "invitedBy": user.get("invitedBy")
+        })
+    
+    return user_list
+
+@app.put("/api/admin/users/{user_id}")
+async def update_user(user_id: str, update: UserUpdateRequest, admin_username: str):
+    users = get_users_collection()
+    
+    # Verify admin
+    admin = await users.find_one({"username": admin_username, "role": "admin"})
+    if not admin:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    
+    # Check if new username already exists
+    existing = await users.find_one({"username": update.username, "_id": {"$ne": ObjectId(user_id)}})
+    if existing:
+        raise HTTPException(status_code=400, detail="Ce nom d'utilisateur est déjà pris")
+    
+    result = await users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"username": update.username}}
     )
     
-    # Return updated slot
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    
+    return {"success": True}
+
+@app.delete("/api/admin/users/{user_id}")
+async def delete_user(user_id: str, admin_username: str):
+    users = get_users_collection()
+    
+    # Verify admin
+    admin = await users.find_one({"username": admin_username, "role": "admin"})
+    if not admin:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    
+    result = await users.delete_one({"_id": ObjectId(user_id)})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    
+    return {"success": True}
+
+@app.post("/api/admin/users/{user_id}/reset-pin")
+async def reset_user_pin(user_id: str, admin_username: str):
+    users = get_users_collection()
+    
+    # Verify admin
+    admin = await users.find_one({"username": admin_username, "role": "admin"})
+    if not admin:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    
+    result = await users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"pin": "0000"}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    
+    return {"success": True, "message": "Code PIN réinitialisé à 0000"}
+
+@app.post("/api/admin/generate-invite", response_model=InviteTokenResponse)
+async def generate_invite_token(admin_username: str):
+    users = get_users_collection()
+    invitations = get_invitations_collection()
+    
+    # Verify admin
+    admin = await users.find_one({"username": admin_username, "role": "admin"})
+    if not admin:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    
+    # Generate token
+    token = secrets.token_urlsafe(16)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+    
+    invitation = {
+        "token": token,
+        "createdBy": admin_username,
+        "expiresAt": expires_at
+    }
+    
+    await invitations.insert_one(invitation)
+    
+    return InviteTokenResponse(token=token, expiresAt=expires_at)
+
+
+# Update slot registration endpoints
+
+@app.post("/api/register", response_model=SlotResponse)
+async def register_player(registration: PlayerRegistration, username: str):
+    # Verify user is authenticated
+    users = get_users_collection()
+    user = await users.find_one({"username": username})
+    if not user:
+        raise HTTPException(status_code=403, detail="Authentification requise")
+    
+    collection = get_collection()
+    target_date = get_next_wednesday_at_19()
+    
+    slot = await collection.find_one({"date": target_date})
+    
+    if not slot:
+        slot = {
+            "date": target_date,
+            "players": [],
+            "is_full": False
+        }
+        await collection.insert_one(slot)
+    
+    if slot["is_full"]:
+        raise HTTPException(status_code=400, detail="Le créneau est complet")
+    
+    # Check if user already registered
+    if username in slot["players"]:
+        raise HTTPException(status_code=400, detail="Vous êtes déjà inscrit")
+    
+    if len(slot["players"]) >= MAX_PLAYERS:
+        await collection.update_one(
+            {"date": target_date},
+            {"$set": {"is_full": True}}
+        )
+        raise HTTPException(status_code=400, detail="Le créneau est complet")
+    
+    # Register user
+    await collection.update_one(
+        {"date": target_date},
+        {"$push": {"players": username}}
+    )
+    
+    updated_slot = await collection.find_one({"date": target_date})
+    
+    if len(updated_slot["players"]) >= MAX_PLAYERS:
+        await collection.update_one(
+            {"date": target_date},
+            {"$set": {"is_full": True}}
+        )
+        updated_slot["is_full"] = True
+    
     return SlotResponse(
-        date=target_date.isoformat(),
-        players=updated_players,
-        player_count=len(updated_players),
-        max_players=MAX_PLAYERS
+        date=updated_slot["date"],
+        players=updated_slot["players"],
+        is_full=updated_slot["is_full"]
+    )
+
+@app.post("/api/register-guest", response_model=SlotResponse)
+async def register_guest(guest: GuestRegistration, username: str):
+    users = get_users_collection()
+    user = await users.find_one({"username": username})
+    if not user:
+        raise HTTPException(status_code=403, detail="Authentification requise")
+    
+    collection = get_collection()
+    target_date = get_next_wednesday_at_19()
+    
+    slot = await collection.find_one({"date": target_date})
+    
+    if not slot:
+        slot = {
+            "date": target_date,
+            "players": [],
+            "is_full": False
+        }
+        await collection.insert_one(slot)
+    
+    if slot["is_full"]:
+        raise HTTPException(status_code=400, detail="Le créneau est complet")
+    
+    if len(slot["players"]) >= MAX_PLAYERS:
+        await collection.update_one(
+            {"date": target_date},
+            {"$set": {"is_full": True}}
+        )
+        raise HTTPException(status_code=400, detail="Le créneau est complet")
+    
+    # Format guest name
+    guest_display_name = f"(Invité) {guest.guestName} [par {username}]"
+    
+    await collection.update_one(
+        {"date": target_date},
+        {"$push": {"players": guest_display_name}}
+    )
+    
+    updated_slot = await collection.find_one({"date": target_date})
+    
+    if len(updated_slot["players"]) >= MAX_PLAYERS:
+        await collection.update_one(
+            {"date": target_date},
+            {"$set": {"is_full": True}}
+        )
+        updated_slot["is_full"] = True
+    
+    return SlotResponse(
+        date=updated_slot["date"],
+        players=updated_slot["players"],
+        is_full=updated_slot["is_full"]
+    )
+
+@app.delete("/api/unregister/{player_name}")
+async def unregister_player(player_name: str, username: str):
+    users = get_users_collection()
+    user = await users.find_one({"username": username})
+    if not user:
+        raise HTTPException(status_code=403, detail="Authentification requise")
+    
+    collection = get_collection()
+    target_date = get_next_wednesday_at_19()
+    
+    slot = await collection.find_one({"date": target_date})
+    
+    if not slot:
+        raise HTTPException(status_code=404, detail="Créneau non trouvé")
+    
+    # Check permissions
+    is_admin = user["role"] == "admin"
+    is_own_registration = player_name == username
+    is_own_guest = f"[par {username}]" in player_name
+    
+    if not (is_admin or is_own_registration or is_own_guest):
+        raise HTTPException(status_code=403, detail="Vous ne pouvez pas supprimer cette inscription")
+    
+    if player_name not in slot["players"]:
+        raise HTTPException(status_code=404, detail="Joueur non trouvé")
+    
+    await collection.update_one(
+        {"date": target_date},
+        {"$pull": {"players": player_name}, "$set": {"is_full": False}}
+    )
+    
+    updated_slot = await collection.find_one({"date": target_date})
+    
+    return SlotResponse(
+        date=updated_slot["date"],
+        players=updated_slot["players"],
+        is_full=updated_slot["is_full"]
     )
 
 

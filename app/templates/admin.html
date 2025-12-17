@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Soccer Slot Manager</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background-color: #0056b3;
+        }
+        
+        button.danger {
+            background-color: #dc3545;
+        }
+        
+        button.danger:hover {
+            background-color: #c82333;
+        }
+        
+        button.warning {
+            background-color: #ffc107;
+            color: #000;
+        }
+        
+        button.warning:hover {
+            background-color: #e0a800;
+        }
+        
+        button.secondary {
+            background-color: #6c757d;
+        }
+        
+        button.secondary:hover {
+            background-color: #5a6268;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .action-buttons button {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+        }
+        
+        .modal-content h2 {
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .button-group button {
+            flex: 1;
+        }
+        
+        .token-display {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            word-break: break-all;
+            font-family: monospace;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #007bff;
+            text-decoration: none;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="container">
+            <a href="/" class="back-link">← Retour au match</a>
+            
+            <h1>Tableau de bord administrateur</h1>
+            
+            <div v-if="error" class="error">{{ error }}</div>
+            <div v-if="success" class="success">{{ success }}</div>
+            
+            <div class="header-actions">
+                <h2>Gestion des utilisateurs</h2>
+                <button @click="showInviteModal = true">Générer un code d'invitation</button>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nom d'utilisateur</th>
+                        <th>Rôle</th>
+                        <th>Invité par</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="user in users" :key="user.id">
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.role === 'admin' ? 'Administrateur' : 'Utilisateur' }}</td>
+                        <td>{{ user.invitedBy || '-' }}</td>
+                        <td>
+                            <div class="action-buttons">
+                                <button @click="editUser(user)">Renommer</button>
+                                <button class="warning" @click="resetPin(user)">Réinitialiser PIN</button>
+                                <button class="danger" @click="deleteUser(user)">Supprimer</button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Invite Token Modal -->
+        <div class="modal" :class="{ show: showInviteModal }">
+            <div class="modal-content">
+                <h2>Code d'invitation généré</h2>
+                <p>Partagez ce code avec le nouvel utilisateur. Il sera valide pendant 24 heures.</p>
+                <div v-if="generatedToken" class="token-display">
+                    <strong>Code:</strong><br>
+                    {{ generatedToken.token }}
+                    <br><br>
+                    <strong>Expire le:</strong> {{ formatDate(generatedToken.expiresAt) }}
+                </div>
+                <div class="button-group">
+                    <button @click="copyToken">Copier le code</button>
+                    <button class="secondary" @click="showInviteModal = false; generatedToken = null;">Fermer</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Edit User Modal -->
+        <div class="modal" :class="{ show: showEditModal }">
+            <div class="modal-content">
+                <h2>Renommer l'utilisateur</h2>
+                <div class="form-group">
+                    <label>Nouveau nom d'utilisateur</label>
+                    <input v-model="editForm.username" />
+                </div>
+                <div class="button-group">
+                    <button @click="saveUserEdit">Enregistrer</button>
+                    <button class="secondary" @click="showEditModal = false; editForm = {};">Annuler</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    users: [],
+                    currentUser: null,
+                    error: '',
+                    success: '',
+                    showInviteModal: false,
+                    showEditModal: false,
+                    generatedToken: null,
+                    editForm: {}
+                };
+            },
+            methods: {
+                async checkAuth() {
+                    const storedUser = localStorage.getItem('currentUser');
+                    if (!storedUser) {
+                        window.location.href = '/';
+                        return;
+                    }
+                    
+                    this.currentUser = JSON.parse(storedUser);
+                    
+                    if (this.currentUser.role !== 'admin') {
+                        alert('Accès refusé');
+                        window.location.href = '/';
+                        return;
+                    }
+                    
+                    await this.fetchUsers();
+                },
+                async fetchUsers() {
+                    try {
+                        const response = await fetch(`/api/admin/users?admin_username=${this.currentUser.username}`);
+                        
+                        if (response.ok) {
+                            this.users = await response.json();
+                        } else {
+                            this.error = 'Erreur lors du chargement des utilisateurs';
+                        }
+                    } catch (err) {
+                        this.error = 'Erreur de connexion';
+                    }
+                },
+                async generateInvite() {
+                    try {
+                        const response = await fetch(`/api/admin/generate-invite?admin_username=${this.currentUser.username}`, {
+                            method: 'POST'
+                        });
+                        
+                        if (response.ok) {
+                            this.generatedToken = await response.json();
+                            this.showInviteModal = true;
+                        } else {
+                            const data = await response.json();
+                            this.error = data.detail;
+                            setTimeout(() => this.error = '', 3000);
+                        }
+                    } catch (err) {
+                        this.error = 'Erreur lors de la génération du code';
+                        setTimeout(() => this.error = '', 3000);
+                    }
+                },
+                copyToken() {
+                    if (this.generatedToken) {
+                        navigator.clipboard.writeText(this.generatedToken.token);
+                        this.success = 'Code copié dans le presse-papiers';
+                        setTimeout(() => this.success = '', 3000);
+                    }
+                },
+                editUser(user) {
+                    this.editForm = { ...user };
+                    this.showEditModal = true;
+                },
+                async saveUserEdit() {
+                    try {
+                        const response = await fetch(`/api/admin/users/${this.editForm.id}?admin_username=${this.currentUser.username}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username: this.editForm.username })
+                        });
+                        
+                        if (response.ok) {
+                            this.success = 'Utilisateur renommé avec succès';
+                            this.showEditModal = false;
+                            this.editForm = {};
+                            await this.fetchUsers();
+                            setTimeout(() => this.success = '', 3000);
+                        } else {
+                            const data = await response.json();
+                            this.error = data.detail;
+                            setTimeout(() => this.error = '', 3000);
+                        }
+                    } catch (err) {
+                        this.error = 'Erreur lors de la modification';
+                        setTimeout(() => this.error = '', 3000);
+                    }
+                },
+                async resetPin(user) {
+                    if (!confirm(`Réinitialiser le code PIN de ${user.username} à 0000 ?`)) {
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`/api/admin/users/${user.id}/reset-pin?admin_username=${this.currentUser.username}`, {
+                            method: 'POST'
+                        });
+                        
+                        if (response.ok) {
+                            this.success = 'Code PIN réinitialisé à 0000';
+                            setTimeout(() => this.success = '', 3000);
+                        } else {
+                            const data = await response.json();
+                            this.error = data.detail;
+                            setTimeout(() => this.error = '', 3000);
+                        }
+                    } catch (err) {
+                        this.error = 'Erreur lors de la réinitialisation';
+                        setTimeout(() => this.error = '', 3000);
+                    }
+                },
+                async deleteUser(user) {
+                    if (!confirm(`Supprimer définitivement l'utilisateur ${user.username} ?`)) {
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`/api/admin/users/${user.id}?admin_username=${this.currentUser.username}`, {
+                            method: 'DELETE'
+                        });
+                        
+                        if (response.ok) {
+                            this.success = 'Utilisateur supprimé';
+                            await this.fetchUsers();
+                            setTimeout(() => this.success = '', 3000);
+                        } else {
+                            const data = await response.json();
+                            this.error = data.detail;
+                            setTimeout(() => this.error = '', 3000);
+                        }
+                    } catch (err) {
+                        this.error = 'Erreur lors de la suppression';
+                        setTimeout(() => this.error = '', 3000);
+                    }
+                },
+                formatDate(dateString) {
+                    const date = new Date(dateString);
+                    return date.toLocaleString('fr-FR', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+            },
+            async mounted() {
+                await this.checkAuth();
+                this.showInviteModal = false;
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

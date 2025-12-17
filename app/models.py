@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import List
+from typing import List, Optional, Literal
 from datetime import datetime
 
 
@@ -43,3 +43,50 @@ class SlotResponse(BaseModel):
     players: List[str] = Field(..., description="List of player names")
     player_count: int = Field(..., description="Current number of players")
     max_players: int = Field(default=10, description="Maximum allowed players")
+
+
+class User(BaseModel):
+    username: str
+    pin: str  # 4 digits, stored in plain text
+    role: Literal['user', 'admin']
+    invitedBy: Optional[str] = None  # username of inviter
+
+
+class UserInDB(User):
+    id: str = Field(alias="_id")
+
+
+class InvitationToken(BaseModel):
+    token: str
+    createdBy: str  # admin username
+    expiresAt: datetime
+
+
+class UserRegistration(BaseModel):
+    username: str
+    pin: str
+    inviteToken: str
+
+
+class LoginRequest(BaseModel):
+    username: str
+    pin: str
+
+
+class LoginResponse(BaseModel):
+    success: bool
+    user: Optional[dict] = None
+    message: str
+
+
+class InviteTokenResponse(BaseModel):
+    token: str
+    expiresAt: datetime
+
+
+class UserUpdateRequest(BaseModel):
+    username: str
+
+
+class GuestRegistration(BaseModel):
+    guestName: str

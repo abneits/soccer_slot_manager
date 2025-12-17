@@ -201,6 +201,100 @@
             color: #667eea;
         }
 
+        .auth-section {
+            text-align: right;
+            margin-bottom: 20px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .button-group button {
+            flex: 1;
+        }
+
+        .guest-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .admin-link {
+            display: inline-block;
+            margin-left: 10px;
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        .admin-link:hover {
+            text-decoration: underline;
+        }
+
+        .delete-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .delete-btn:hover {
+            background-color: #c82333;
+        }
+
         @media (max-width: 600px) {
             #app {
                 padding: 20px;
@@ -218,72 +312,118 @@
 </head>
 <body>
     <div id="app">
-        <div v-if="loading" class="loading">
-            ⚽ Chargement...
-        </div>
-
-        <div v-else>
-            <h1>⚽ Play Arena</h1>
-            <div class="match-date">
-                📅 <span v-text="formattedDate"></span>
+        <div class="container">
+            <div class="auth-section">
+                <span v-if="currentUser">
+                    Connecté en tant que: <strong>{{ currentUser.username }}</strong> ({{ currentUser.role }})
+                    <a v-if="currentUser.role === 'admin'" href="/admin" class="admin-link">Tableau de bord admin</a>
+                    <button @click="logout" style="margin-left: 10px;">Déconnexion</button>
+                </span>
+                <button v-else @click="showLoginModal = true">Se connecter</button>
             </div>
-
-            <div class="player-count">
-                <strong><span v-text="slot.player_count"></span> / <span v-text="slot.max_players"></span></strong> joueurs inscrits
-            </div>
-
-            <div v-if="isFull" class="status-badge badge-full">
-                🔒 COMPLET / FULL
-            </div>
-
-            <div class="players-section">
-                <h2>Liste des Joueurs</h2>
-                <table class="players-table">
+            
+            <h1>Soccer Slot Manager</h1>
+            
+            <div v-if="error" class="error">{{ error }}</div>
+            <div v-if="success" class="success">{{ success }}</div>
+            
+            <div v-if="slot">
+                <p><strong>Date du prochain match:</strong> {{ formatDate(slot.date) }}</p>
+                <p><strong>Statut:</strong> {{ slot.is_full ? 'Complet' : 'Places disponibles' }}</p>
+                <p><strong>Joueurs inscrits:</strong> {{ slot.players.length }} / 10</p>
+                
+                <table>
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Nom du Joueur</th>
+                            <th>N°</th>
+                            <th>Joueur</th>
+                            <th v-if="currentUser">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="index in 10" :key="index">
-                            <td v-text="index"></td>
-                            <td :class="{ 'empty-slot': !slot.players[index - 1] }">
-                                <span v-if="slot.players[index - 1]" v-text="slot.players[index - 1]"></span>
-                                <span v-else>...</span>
+                            <td>{{ index }}</td>
+                            <td>
+                                {{ slot.players[index - 1] || '-' }}
+                                <button 
+                                    v-if="slot.players[index - 1] && currentUser && canDelete(slot.players[index - 1])"
+                                    @click="deletePlayer(slot.players[index - 1])"
+                                    class="delete-btn"
+                                >
+                                    ✕
+                                </button>
                             </td>
+                            <td v-if="currentUser"></td>
                         </tr>
                     </tbody>
                 </table>
-            </div>
-
-            <div v-if="errorMessage" class="error-message">
-                ❌ <span v-text="errorMessage"></span>
-            </div>
-
-            <div v-if="successMessage" class="success-message">
-                ✅ <span v-text="successMessage"></span>
-            </div>
-
-            <div v-if="!isFull" class="registration-form">
-                <h2>S'inscrire au Match</h2>
-                <form @submit.prevent="registerPlayer">
-                    <div class="form-group">
-                        <label for="playerName">Nom du Joueur</label>
-                        <input
-                            type="text"
-                            id="playerName"
-                            v-model="playerName"
-                            placeholder="Entrez votre nom"
-                            required
-                            :disabled="submitting"
-                        />
+                
+                <div v-if="currentUser && !slot.is_full">
+                    <div v-if="!isUserRegistered">
+                        <button @click="registerSelf">M'inscrire</button>
                     </div>
-                    <button type="submit" class="submit-btn" :disabled="submitting || !playerName.trim()">
-                        <span v-if="submitting">⏳ Inscription...</span>
-                        <span v-else>✅ S'inscrire</span>
-                    </button>
-                </form>
+                    
+                    <div v-if="currentUser.role === 'user'" class="guest-section">
+                        <h3>Ajouter un invité</h3>
+                        <div class="form-group">
+                            <input 
+                                v-model="guestName" 
+                                placeholder="Nom de l'invité"
+                                @keyup.enter="registerGuest"
+                            />
+                        </div>
+                        <button @click="registerGuest">Ajouter l'invité</button>
+                    </div>
+                </div>
+                
+                <div v-else-if="!currentUser">
+                    <p style="color: #666; font-style: italic; margin-top: 20px;">
+                        Connectez-vous pour vous inscrire au match
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Login Modal -->
+        <div class="modal" :class="{ show: showLoginModal }">
+            <div class="modal-content">
+                <h2>Connexion</h2>
+                <div class="form-group">
+                    <label>Nom d'utilisateur</label>
+                    <input v-model="loginForm.username" @keyup.enter="login" />
+                </div>
+                <div class="form-group">
+                    <label>Code PIN (4 chiffres)</label>
+                    <input v-model="loginForm.pin" type="password" maxlength="4" @keyup.enter="login" />
+                </div>
+                <div class="button-group">
+                    <button @click="login">Se connecter</button>
+                    <button @click="showLoginModal = false; showSignupModal = true;">S'inscrire</button>
+                    <button @click="showLoginModal = false; clearLoginForm();">Annuler</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Signup Modal -->
+        <div class="modal" :class="{ show: showSignupModal }">
+            <div class="modal-content">
+                <h2>Créer un compte</h2>
+                <div class="form-group">
+                    <label>Nom d'utilisateur</label>
+                    <input v-model="signupForm.username" />
+                </div>
+                <div class="form-group">
+                    <label>Code PIN (4 chiffres)</label>
+                    <input v-model="signupForm.pin" type="password" maxlength="4" />
+                </div>
+                <div class="form-group">
+                    <label>Code d'invitation</label>
+                    <input v-model="signupForm.inviteToken" />
+                </div>
+                <div class="button-group">
+                    <button @click="signup">Créer le compte</button>
+                    <button @click="showSignupModal = false; clearSignupForm();">Annuler</button>
+                </div>
             </div>
         </div>
     </div>
@@ -294,111 +434,220 @@
         createApp({
             data() {
                 return {
-                    slot: {
-                        date: '',
-                        players: [],
-                        player_count: 0,
-                        max_players: 10
+                    slot: null,
+                    guestName: '',
+                    error: '',
+                    success: '',
+                    currentUser: null,
+                    showLoginModal: false,
+                    showSignupModal: false,
+                    loginForm: {
+                        username: '',
+                        pin: ''
                     },
-                    playerName: '',
-                    loading: true,
-                    submitting: false,
-                    errorMessage: '',
-                    successMessage: ''
+                    signupForm: {
+                        username: '',
+                        pin: '',
+                        inviteToken: ''
+                    }
                 };
             },
             computed: {
-                formattedDate() {
-                    if (!this.slot.date) return '';
+                isUserRegistered() {
+                    if (!this.currentUser || !this.slot) return false;
+                    return this.slot.players.includes(this.currentUser.username);
+                }
+            },
+            methods: {
+                async fetchSlot() {
+                    try {
+                        const response = await fetch('/api/current-slot');
+                        this.slot = await response.json();
+                    } catch (err) {
+                        this.error = 'Erreur lors du chargement des données';
+                    }
+                },
+                async login() {
+                    try {
+                        const response = await fetch('/api/auth/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.loginForm)
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.currentUser = data.user;
+                            localStorage.setItem('currentUser', JSON.stringify(data.user));
+                            this.showLoginModal = false;
+                            this.clearLoginForm();
+                            this.success = 'Connexion réussie';
+                            setTimeout(() => this.success = '', 3000);
+                            await this.fetchSlot();
+                        } else {
+                            this.error = data.message;
+                            setTimeout(() => this.error = '', 3000);
+                        }
+                    } catch (err) {
+                        this.error = 'Erreur lors de la connexion';
+                        setTimeout(() => this.error = '', 3000);
+                    }
+                },
+                async signup() {
+                    if (this.signupForm.pin.length !== 4) {
+                        this.error = 'Le code PIN doit contenir 4 chiffres';
+                        setTimeout(() => this.error = '', 3000);
+                        return;
+                    }
                     
-                    const date = new Date(this.slot.date);
-                    const options = {
+                    try {
+                        const response = await fetch('/api/auth/signup', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.signupForm)
+                        });
+                        
+                        if (response.ok) {
+                            this.success = 'Compte créé avec succès. Vous pouvez maintenant vous connecter.';
+                            this.showSignupModal = false;
+                            this.clearSignupForm();
+                            this.showLoginModal = true;
+                            setTimeout(() => this.success = '', 3000);
+                        } else {
+                            const data = await response.json();
+                            this.error = data.detail;
+                            setTimeout(() => this.error = '', 3000);
+                        }
+                    } catch (err) {
+                        this.error = 'Erreur lors de la création du compte';
+                        setTimeout(() => this.error = '', 3000);
+                    }
+                },
+                logout() {
+                    this.currentUser = null;
+                    localStorage.removeItem('currentUser');
+                    this.success = 'Déconnexion réussie';
+                    setTimeout(() => this.success = '', 3000);
+                },
+                async registerSelf() {
+                    if (this.isUserRegistered) {
+                        this.error = 'Vous êtes déjà inscrit';
+                        setTimeout(() => this.error = '', 3000);
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`/api/register?username=${this.currentUser.username}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: this.currentUser.username })
+                        });
+                        
+                        if (response.ok) {
+                            await this.fetchSlot();
+                            this.success = 'Inscription réussie';
+                            setTimeout(() => this.success = '', 3000);
+                        } else {
+                            const data = await response.json();
+                            this.error = data.detail;
+                            setTimeout(() => this.error = '', 3000);
+                        }
+                    } catch (err) {
+                        this.error = 'Erreur lors de l\'inscription';
+                        setTimeout(() => this.error = '', 3000);
+                    }
+                },
+                async registerGuest() {
+                    if (!this.guestName.trim()) {
+                        this.error = 'Veuillez entrer un nom pour l\'invité';
+                        setTimeout(() => this.error = '', 3000);
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`/api/register-guest?username=${this.currentUser.username}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ guestName: this.guestName })
+                        });
+                        
+                        if (response.ok) {
+                            await this.fetchSlot();
+                            this.guestName = '';
+                            this.success = 'Invité ajouté avec succès';
+                            setTimeout(() => this.success = '', 3000);
+                        } else {
+                            const data = await response.json();
+                            this.error = data.detail;
+                            setTimeout(() => this.error = '', 3000);
+                        }
+                    } catch (err) {
+                        this.error = 'Erreur lors de l\'ajout de l\'invité';
+                        setTimeout(() => this.error = '', 3000);
+                    }
+                },
+                async deletePlayer(playerName) {
+                    if (!confirm(`Supprimer l'inscription de ${playerName} ?`)) {
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`/api/unregister/${encodeURIComponent(playerName)}?username=${this.currentUser.username}`, {
+                            method: 'DELETE'
+                        });
+                        
+                        if (response.ok) {
+                            await this.fetchSlot();
+                            this.success = 'Inscription supprimée';
+                            setTimeout(() => this.success = '', 3000);
+                        } else {
+                            const data = await response.json();
+                            this.error = data.detail;
+                            setTimeout(() => this.error = '', 3000);
+                        }
+                    } catch (err) {
+                        this.error = 'Erreur lors de la suppression';
+                        setTimeout(() => this.error = '', 3000);
+                    }
+                },
+                canDelete(playerName) {
+                    if (!this.currentUser) return false;
+                    if (this.currentUser.role === 'admin') return true;
+                    if (playerName === this.currentUser.username) return true;
+                    if (playerName.includes(`[par ${this.currentUser.username}]`)) return true;
+                    return false;
+                },
+                formatDate(dateString) {
+                    const date = new Date(dateString);
+                    return date.toLocaleString('fr-FR', {
                         weekday: 'long',
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric',
                         hour: '2-digit',
                         minute: '2-digit'
-                    };
-                    
-                    return date.toLocaleDateString('fr-FR', options);
+                    });
                 },
-                isFull() {
-                    return this.slot.player_count >= this.slot.max_players;
-                }
-            },
-            methods: {
-                async fetchSlot() {
-                    try {
-                        this.loading = true;
-                        this.errorMessage = '';
-                        
-                        const response = await fetch('/api/current-slot');
-                        
-                        if (!response.ok) {
-                            throw new Error('Erreur lors du chargement du slot');
-                        }
-                        
-                        this.slot = await response.json();
-                    } catch (error) {
-                        this.errorMessage = error.message;
-                        console.error('Error fetching slot:', error);
-                    } finally {
-                        this.loading = false;
-                    }
+                clearLoginForm() {
+                    this.loginForm.username = '';
+                    this.loginForm.pin = '';
                 },
-                async registerPlayer() {
-                    if (!this.playerName.trim()) {
-                        this.errorMessage = 'Le nom ne peut pas être vide';
-                        return;
-                    }
-
-                    try {
-                        this.submitting = true;
-                        this.errorMessage = '';
-                        this.successMessage = '';
-                        
-                        const response = await fetch('/api/register', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                name: this.playerName.trim()
-                            })
-                        });
-                        
-                        const data = await response.json();
-                        
-                        if (!response.ok) {
-                            throw new Error(data.detail || 'Erreur lors de l\'inscription');
-                        }
-                        
-                        // Update slot with new data
-                        this.slot = data;
-                        this.successMessage = `${this.playerName} a été inscrit avec succès !`;
-                        this.playerName = '';
-                        
-                        // Clear success message after 3 seconds
-                        setTimeout(() => {
-                            this.successMessage = '';
-                        }, 3000);
-                        
-                    } catch (error) {
-                        this.errorMessage = error.message;
-                        console.error('Error registering player:', error);
-                    } finally {
-                        this.submitting = false;
-                    }
+                clearSignupForm() {
+                    this.signupForm.username = '';
+                    this.signupForm.pin = '';
+                    this.signupForm.inviteToken = '';
                 }
             },
             mounted() {
-                this.fetchSlot();
+                // Check for stored user
+                const storedUser = localStorage.getItem('currentUser');
+                if (storedUser) {
+                    this.currentUser = JSON.parse(storedUser);
+                }
                 
-                // Auto-refresh every 30 seconds
-                setInterval(() => {
-                    this.fetchSlot();
-                }, 30000);
+                this.fetchSlot();
+                setInterval(this.fetchSlot, 30000);
             }
         }).mount('#app');
     </script>
