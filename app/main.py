@@ -7,6 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime, timedelta, timezone
 from bson import ObjectId
 from typing import Optional
+from dotenv import load_dotenv
 import os
 import secrets
 from jinja2 import Environment, FileSystemLoader
