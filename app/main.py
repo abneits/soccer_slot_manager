@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime, timedelta, timezone
 from bson import ObjectId
+from typing import Optional
 import os
 import secrets
 from dotenv import load_dotenv
