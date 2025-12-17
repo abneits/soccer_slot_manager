@@ -381,7 +381,7 @@ async def register_player(registration: PlayerRegistration, username: str):
         }
         await collection.insert_one(slot)
     
-    if slot["is_full"]:
+    if slot.get("is_full"):
         raise HTTPException(status_code=400, detail="Le créneau est complet")
     
     # Check if user already registered
@@ -411,9 +411,10 @@ async def register_player(registration: PlayerRegistration, username: str):
         updated_slot["is_full"] = True
     
     return SlotResponse(
-        date=updated_slot["date"],
+        date=updated_slot["date"].isoformat(),
         players=updated_slot["players"],
-        is_full=updated_slot["is_full"]
+        player_count=len(updated_slot["players"]),
+        max_players=MAX_PLAYERS
     )
 
 @app.post("/api/register-guest", response_model=SlotResponse)
@@ -436,7 +437,7 @@ async def register_guest(guest: GuestRegistration, username: str):
         }
         await collection.insert_one(slot)
     
-    if slot["is_full"]:
+    if slot.get("is_full"):
         raise HTTPException(status_code=400, detail="Le créneau est complet")
     
     if len(slot["players"]) >= MAX_PLAYERS:
@@ -464,9 +465,10 @@ async def register_guest(guest: GuestRegistration, username: str):
         updated_slot["is_full"] = True
     
     return SlotResponse(
-        date=updated_slot["date"],
+        date=updated_slot["date"].isoformat(),
         players=updated_slot["players"],
-        is_full=updated_slot["is_full"]
+        player_count=len(updated_slot["players"]),
+        max_players=MAX_PLAYERS
     )
 
 @app.delete("/api/unregister/{player_name}")
@@ -503,9 +505,10 @@ async def unregister_player(player_name: str, username: str):
     updated_slot = await collection.find_one({"date": target_date})
     
     return SlotResponse(
-        date=updated_slot["date"],
+        date=updated_slot["date"].isoformat(),
         players=updated_slot["players"],
-        is_full=updated_slot["is_full"]
+        player_count=len(updated_slot["players"]),
+        max_players=MAX_PLAYERS
     )
 
 
