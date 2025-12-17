@@ -141,12 +141,12 @@ def get_collection():
 
 def get_users_collection():
     """Get users collection"""
-    return db_client[USERS_COLLECTION]
+    return get_db()[USERS_COLLECTION]
 
 
 def get_invitations_collection():
     """Get invitations collection"""
-    return db_client[INVITATIONS_COLLECTION]
+    return get_db()[INVITATIONS_COLLECTION]
 
 
 @app.get("/", response_class=HTMLResponse)
