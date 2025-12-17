@@ -233,8 +233,6 @@
                         <td>{{ user.invitedBy || '-' }}</td>
                         <td>
                             <div class="action-buttons">
-                                <button @click="editUser(user)">Renommer</button>
-                                <button class="warning" @click="resetPin(user)">Réinitialiser PIN</button>
                                 <button class="danger" @click="deleteUser(user)">Supprimer</button>
                             </div>
                         </td>
@@ -260,21 +258,6 @@
                 </div>
             </div>
         </div>
-        
-        <!-- Edit User Modal -->
-        <div class="modal" :class="{ show: showEditModal }">
-            <div class="modal-content">
-                <h2>Renommer l'utilisateur</h2>
-                <div class="form-group">
-                    <label>Nouveau nom d'utilisateur</label>
-                    <input v-model="editForm.username" />
-                </div>
-                <div class="button-group">
-                    <button @click="saveUserEdit">Enregistrer</button>
-                    <button class="secondary" @click="showEditModal = false; editForm = {};">Annuler</button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script>
@@ -288,9 +271,7 @@
                     error: '',
                     success: '',
                     showInviteModal: false,
-                    showEditModal: false,
-                    generatedToken: null,
-                    editForm: {}
+                    generatedToken: null
                 };
             },
             methods: {
@@ -348,57 +329,6 @@
                         navigator.clipboard.writeText(this.generatedToken.token);
                         this.success = 'Code copié dans le presse-papiers';
                         setTimeout(() => this.success = '', 3000);
-                    }
-                },
-                editUser(user) {
-                    this.editForm = { ...user };
-                    this.showEditModal = true;
-                },
-                async saveUserEdit() {
-                    try {
-                        const response = await fetch(`/api/admin/users/${this.editForm.id}?admin_username=${this.currentUser.username}`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ username: this.editForm.username })
-                        });
-                        
-                        if (response.ok) {
-                            this.success = 'Utilisateur renommé avec succès';
-                            this.showEditModal = false;
-                            this.editForm = {};
-                            await this.fetchUsers();
-                            setTimeout(() => this.success = '', 3000);
-                        } else {
-                            const data = await response.json();
-                            this.error = data.detail;
-                            setTimeout(() => this.error = '', 3000);
-                        }
-                    } catch (err) {
-                        this.error = 'Erreur lors de la modification';
-                        setTimeout(() => this.error = '', 3000);
-                    }
-                },
-                async resetPin(user) {
-                    if (!confirm(`Réinitialiser le code PIN de ${user.username} à 0000 ?`)) {
-                        return;
-                    }
-                    
-                    try {
-                        const response = await fetch(`/api/admin/users/${user.id}/reset-pin?admin_username=${this.currentUser.username}`, {
-                            method: 'POST'
-                        });
-                        
-                        if (response.ok) {
-                            this.success = 'Code PIN réinitialisé à 0000';
-                            setTimeout(() => this.success = '', 3000);
-                        } else {
-                            const data = await response.json();
-                            this.error = data.detail;
-                            setTimeout(() => this.error = '', 3000);
-                        }
-                    } catch (err) {
-                        this.error = 'Erreur lors de la réinitialisation';
-                        setTimeout(() => this.error = '', 3000);
                     }
                 },
                 async deleteUser(user) {

@@ -341,6 +341,7 @@
                 <span v-if="currentUser">
                     Connecté en tant que: <strong>{{ currentUser.username }}</strong> ({{ currentUser.role }})
                     <a v-if="currentUser.role === 'admin'" href="/admin" class="admin-link">Tableau de bord admin</a>
+                    <button @click="showChangePinModal = true" style="margin-left: 10px;">Changer le PIN</button>
                     <button @click="logout" style="margin-left: 10px;">Déconnexion</button>
                 </span>
                 <div v-else>
@@ -461,6 +462,33 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Change PIN Modal -->
+        <div class="modal" :class="{ show: showChangePinModal }">
+            <div class="modal-content">
+                <h2>Changer le code PIN</h2>
+                
+                <div v-if="error && showChangePinModal" class="error">{{ error }}</div>
+                <div v-if="success && showChangePinModal" class="success">{{ success }}</div>
+                
+                <div class="form-group">
+                    <label>Code PIN actuel</label>
+                    <input v-model="changePinForm.oldPin" type="password" maxlength="4" />
+                </div>
+                <div class="form-group">
+                    <label>Nouveau code PIN (4 chiffres)</label>
+                    <input v-model="changePinForm.newPin" type="password" maxlength="4" />
+                </div>
+                <div class="form-group">
+                    <label>Confirmer le nouveau code PIN</label>
+                    <input v-model="changePinForm.confirmPin" type="password" maxlength="4" />
+                </div>
+                <div class="button-group">
+                    <button @click="changePin">Modifier</button>
+                    <button @click="showChangePinModal = false; clearChangePinForm(); clearError();">Annuler</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -476,6 +504,7 @@
                     currentUser: null,
                     showLoginModal: false,
                     showSignupModal: false,
+                    showChangePinModal: false,
                     loginForm: {
                         username: '',
                         pin: ''
@@ -484,6 +513,11 @@
                         username: '',
                         pin: '',
                         inviteToken: ''
+                    },
+                    changePinForm: {
+                        oldPin: '',
+                        newPin: '',
+                        confirmPin: ''
                     }
                 };
             },
@@ -678,6 +712,46 @@
                 clearError() {
                     this.error = '';
                     this.success = '';
+                },
+                async changePin() {
+                    if (this.changePinForm.newPin.length !== 4 || !this.changePinForm.newPin.match(/^\d+$/)) {
+                        this.error = 'Le nouveau code PIN doit contenir exactement 4 chiffres';
+                        setTimeout(() => this.error = '', 3000);
+                        return;
+                    }
+                    
+                    if (this.changePinForm.newPin !== this.changePinForm.confirmPin) {
+                        this.error = 'Les codes PIN ne correspondent pas';
+                        setTimeout(() => this.error = '', 3000);
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`/api/auth/change-pin?username=${this.currentUser.username}&old_pin=${this.changePinForm.oldPin}&new_pin=${this.changePinForm.newPin}`, {
+                            method: 'POST'
+                        });
+                        
+                        if (response.ok) {
+                            this.success = 'Code PIN modifié avec succès';
+                            this.clearChangePinForm();
+                            setTimeout(() => {
+                                this.success = '';
+                                this.showChangePinModal = false;
+                            }, 2000);
+                        } else {
+                            const data = await response.json();
+                            this.error = data.detail;
+                            setTimeout(() => this.error = '', 3000);
+                        }
+                    } catch (err) {
+                        this.error = 'Erreur lors de la modification du code PIN';
+                        setTimeout(() => this.error = '', 3000);
+                    }
+                },
+                clearChangePinForm() {
+                    this.changePinForm.oldPin = '';
+                    this.changePinForm.newPin = '';
+                    this.changePinForm.confirmPin = '';
                 }
             },
             mounted() {

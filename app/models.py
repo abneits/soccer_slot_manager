@@ -90,3 +90,8 @@ class UserUpdateRequest(BaseModel):
 
 class GuestRegistration(BaseModel):
     guestName: str
+
+
+class ChangePinRequest(BaseModel):
+    old_pin: str
+    new_pin: str
