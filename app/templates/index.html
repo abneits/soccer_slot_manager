@@ -335,6 +335,50 @@
         .registration-section {
             margin-top: 25px;
         }
+        
+        .slot-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 25px 0;
+        }
+        
+        .info-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            border-left: 4px solid #667eea;
+            transition: transform 0.2s ease;
+        }
+        
+        .info-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+        
+        .info-label {
+            font-size: 0.85em;
+            color: #666;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        
+        .info-value {
+            font-size: 1.3em;
+            color: #333;
+            font-weight: 700;
+        }
+        
+        .status-full {
+            color: #dc3545;
+        }
+        
+        .status-available {
+            color: #28a745;
+        }
     </style>
 </head>
 <body>
@@ -359,9 +403,22 @@
             <div v-if="success && !showLoginModal && !showSignupModal && !showChangePinModal" class="success">{{ success }}</div>
             
             <div v-if="slot">
-                <p><strong>Date du prochain match:</strong> {{ formatDate(slot.date) }}</p>
-                <p><strong>Statut:</strong> {{ slot.is_full ? 'Complet' : 'Places disponibles' }}</p>
-                <p><strong>Joueurs inscrits:</strong> {{ slot.players.length }} / 10</p>
+                <div class="slot-info">
+                    <div class="info-card">
+                        <div class="info-label">📅 Date du prochain match</div>
+                        <div class="info-value">{{ formatDate(slot.date) }}</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-label">📊 Statut</div>
+                        <div class="info-value" :class="{ 'status-full': slot.player_count >= 10, 'status-available': slot.player_count < 10 }">
+                            {{ slot.player_count >= 10 ? '🔴 Complet' : '🟢 Places disponibles' }}
+                        </div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-label">👥 Joueurs inscrits</div>
+                        <div class="info-value">{{ slot.player_count }} / 10</div>
+                    </div>
+                </div>
                 
                 <table>
                     <thead>
@@ -388,7 +445,7 @@
                     </tbody>
                 </table>
                 
-                <div v-if="currentUser && !slot.is_full" class="registration-section">
+                <div v-if="currentUser && slot.player_count < 10" class="registration-section">
                     <div v-if="!isUserRegistered">
                         <button @click="registerSelf">M'inscrire</button>
                     </div>

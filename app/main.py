@@ -180,8 +180,7 @@ async def get_current_slot():
         new_slot = {
             "date": target_date,
             "players": [],
-            "guests": [],
-            "is_full": False
+            "guests": []
         }
         await collection.insert_one(new_slot)
         slot_doc = new_slot
@@ -217,15 +216,14 @@ async def register_player(registration: PlayerRegistration, username: str):
         slot = {
             "date": target_date,
             "players": [],
-            "guests": [],
-            "is_full": False
+            "guests": []
         }
         await collection.insert_one(slot)
     
     # Check total capacity (players + guests)
     total_registered = len(slot.get("players", [])) + len(slot.get("guests", []))
     
-    if slot.get("is_full") or total_registered >= MAX_PLAYERS:
+    if total_registered >= MAX_PLAYERS:
         raise HTTPException(status_code=400, detail="Le créneau est complet")
     
     # Check if user already registered
@@ -244,13 +242,6 @@ async def register_player(registration: PlayerRegistration, username: str):
     
     updated_slot = await collection.find_one({"date": target_date})
     total_registered = len(updated_slot.get("players", [])) + len(updated_slot.get("guests", []))
-    
-    # Mark as full if capacity reached
-    if total_registered >= MAX_PLAYERS:
-        await collection.update_one(
-            {"date": target_date},
-            {"$set": {"is_full": True}}
-        )
     
     # Format response for frontend
     players_list = [p["username"] for p in updated_slot.get("players", [])]
@@ -281,16 +272,20 @@ async def register_guest(guest: GuestRegistration, username: str):
         slot = {
             "date": target_date,
             "players": [],
-            "guests": [],
-            "is_full": False
+            "guests": []
         }
         await collection.insert_one(slot)
     
     # Check total capacity
     total_registered = len(slot.get("players", [])) + len(slot.get("guests", []))
     
-    if slot.get("is_full") or total_registered >= MAX_PLAYERS:
+    if total_registered >= MAX_PLAYERS:
         raise HTTPException(status_code=400, detail="Le créneau est complet")
+    
+    # Check if guest name already exists (check by this inviter)
+    existing_guests = [g["name"] for g in slot.get("guests", []) if g.get("invitedBy_id") == str(user["_id"])]
+    if guest.guestName in existing_guests:
+        raise HTTPException(status_code=400, detail="Vous avez déjà ajouté un invité avec ce nom")
     
     # Add guest with invitator reference
     await collection.update_one(
@@ -304,13 +299,6 @@ async def register_guest(guest: GuestRegistration, username: str):
     
     updated_slot = await collection.find_one({"date": target_date})
     total_registered = len(updated_slot.get("players", [])) + len(updated_slot.get("guests", []))
-    
-    # Mark as full if capacity reached
-    if total_registered >= MAX_PLAYERS:
-        await collection.update_one(
-            {"date": target_date},
-            {"$set": {"is_full": True}}
-        )
     
     # Format response for frontend
     players_list = [p["username"] for p in updated_slot.get("players", [])]
@@ -372,12 +360,6 @@ async def unregister_player(player_name: str, username: str):
     
     if not player_found:
         raise HTTPException(status_code=404, detail="Joueur non trouvé")
-    
-    # Always set is_full to false after removal
-    await collection.update_one(
-        {"date": target_date},
-        {"$set": {"is_full": False}}
-    )
     
     updated_slot = await collection.find_one({"date": target_date})
     total_registered = len(updated_slot.get("players", [])) + len(updated_slot.get("guests", []))
@@ -444,12 +426,11 @@ async def signup(registration: UserRegistration):
     # Get admin who created the token (store reference, not just username)
     admin = await users.find_one({"username": token_doc["createdBy"]})
     
-    # Create user with admin reference who created the token
+    # Create user with admin reference who invited
     new_user = {
         "username": registration.username,
         "pin": registration.pin,
         "role": "user",
-        "createdBy": str(admin["_id"]) if admin else None,  # Reference to admin who generated token
         "invitedBy": str(admin["_id"]) if admin else None   # Reference to admin who invited
     }
     
