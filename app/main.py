@@ -441,17 +441,21 @@ async def signup(registration: UserRegistration):
     if datetime.now() > token_doc["expiresAt"]:
         raise HTTPException(status_code=400, detail="Ce code d'invitation a expiré")
     
-    # Create user
+    # Get admin who created the token (store reference, not just username)
+    admin = await users.find_one({"username": token_doc["createdBy"]})
+    
+    # Create user with admin reference who created the token
     new_user = {
         "username": registration.username,
         "pin": registration.pin,
         "role": "user",
-        "invitedBy": token_doc["createdBy"]
+        "createdBy": str(admin["_id"]) if admin else None,  # Reference to admin who generated token
+        "invitedBy": str(admin["_id"]) if admin else None   # Reference to admin who invited
     }
     
     await users.insert_one(new_user)
     
-    # Delete used token
+    # DELETE used token from database
     await invitations.delete_one({"token": registration.inviteToken})
     
     return {"success": True, "message": "Compte créé avec succès"}
