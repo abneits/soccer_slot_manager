@@ -282,10 +282,10 @@ async def register_guest(guest: GuestRegistration, username: str):
     if total_registered >= MAX_PLAYERS:
         raise HTTPException(status_code=400, detail="Le créneau est complet")
     
-    # Check if guest name already exists (check by this inviter)
-    existing_guests = [g["name"] for g in slot.get("guests", []) if g.get("invitedBy_id") == str(user["_id"])]
+    # Check if guest name already exists (global check)
+    existing_guests = [g["name"] for g in slot.get("guests", [])]
     if guest.guestName in existing_guests:
-        raise HTTPException(status_code=400, detail="Vous avez déjà ajouté un invité avec ce nom")
+        raise HTTPException(status_code=400, detail="Un invité avec ce nom est déjà inscrit")
     
     # Add guest with invitator reference
     await collection.update_one(
@@ -345,10 +345,15 @@ async def unregister_player(player_name: str, username: str):
     
     # Try to remove from guests array if not found in players
     if not player_found and player_name.startswith("(Invité)"):
-        guest_name = player_name.split("(Invité) ")[1].split(" [par ")[0]
+        # Extract guest name from format "(Invité) Name [par username]"
+        try:
+            guest_name = player_name.split("(Invité) ")[1].split(" [par ")[0]
+        except IndexError:
+            raise HTTPException(status_code=404, detail="Format de nom d'invité invalide")
+        
         for guest in slot.get("guests", []):
             if guest["name"] == guest_name:
-                if is_admin or guest["invitedBy_id"] == str(user["_id"]):
+                if is_admin or guest.get("invitedBy_id") == str(user["_id"]):
                     await collection.update_one(
                         {"date": target_date},
                         {"$pull": {"guests": {"name": guest_name}}}
@@ -484,11 +489,17 @@ async def get_all_users(admin_username: str):
     
     user_list = []
     async for user in users.find({}):
+        # Get invitor username if invitedBy exists
+        invitor_name = None
+        if user.get("invitedBy"):
+            invitor = await users.find_one({"_id": ObjectId(user["invitedBy"])})
+            invitor_name = invitor["username"] if invitor else None
+        
         user_list.append({
             "id": str(user["_id"]),
             "username": user["username"],
             "role": user["role"],
-            "invitedBy": user.get("invitedBy")
+            "invitedBy": invitor_name
         })
     
     return user_list
