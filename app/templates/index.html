@@ -101,6 +101,10 @@
             text-align: center;
         }
         
+        td:last-child {
+            text-align: center;
+        }
+        
         input[type="text"],
         input[type="password"] {
             padding: 12px 15px;
@@ -328,10 +332,6 @@
             box-shadow: 0 4px 8px rgba(245, 87, 108, 0.3);
         }
         
-        td:last-child {
-            text-align: center;
-        }
-        
         .registration-section {
             margin-top: 25px;
         }
@@ -355,8 +355,8 @@
             
             <h1>⚽ Soccer Slot Manager</h1>
             
-            <div v-if="error && !showLoginModal && !showSignupModal" class="error">{{ error }}</div>
-            <div v-if="success && !showLoginModal && !showSignupModal" class="success">{{ success }}</div>
+            <div v-if="error && !showLoginModal && !showSignupModal && !showChangePinModal" class="error">{{ error }}</div>
+            <div v-if="success && !showLoginModal && !showSignupModal && !showChangePinModal" class="success">{{ success }}</div>
             
             <div v-if="slot">
                 <p><strong>Date du prochain match:</strong> {{ formatDate(slot.date) }}</p>
@@ -371,401 +371,401 @@
                             <th v-if="currentUser">Action</th>
                         </tr>
                     </thead>
-                    <tbody>{{ slot.players[index - 1] || '-' }}</td>
+                    <tbody>
                         <tr v-for="index in 10" :key="index">
                             <td>{{ index }}</td>
-                            <td>
-                                {{ slot.players[index - 1] || '-' }}
+                            <td>{{ slot.players[index - 1] || '-' }}</td>
+                            <td v-if="currentUser">
                                 <button 
-                                    v-if="slot.players[index - 1] && currentUser && canDelete(slot.players[index - 1])"
-                                    @click="deletePlayer(slot.players[index - 1])" Supprimer
+                                    v-if="slot.players[index - 1] && canDelete(slot.players[index - 1])"
+                                    @click="deletePlayer(slot.players[index - 1])"
                                     class="delete-btn"
                                 >
-                                    ✕
+                                    ✕ Supprimer
                                 </button>
                             </td>
-                            <td v-if="currentUser"></td>
-                        </tr><div v-if="currentUser && !slot.is_full" class="registration-section">
+                        </tr>
                     </tbody>
-                </table>lf">M'inscrire</button>
+                </table>
                 
                 <div v-if="currentUser && !slot.is_full" class="registration-section">
-                    <div v-if="!isUserRegistered"><div class="guest-section">
-                        <button @click="registerSelf">M'inscrire</button>h3>
+                    <div v-if="!isUserRegistered">
+                        <button @click="registerSelf">M'inscrire</button>
                     </div>
                     
-                    <div class="guest-section">odel="guestName" 
-                        <h3>Ajouter un invité</h3>l'invité"
+                    <div class="guest-section">
+                        <h3>Ajouter un invité</h3>
                         <div class="form-group">
-                            <input r="registerGuest"
+                            <input 
                                 v-model="guestName" 
                                 placeholder="Nom de l'invité"
-                                type="text"n @click="registerGuest">Ajouter l'invité</button>
+                                type="text"
                                 @keyup.enter="registerGuest"
                             />
                         </div>
-                        <button @click="registerGuest">Ajouter l'invité</button><div v-else-if="!currentUser">
-                    </div>t-style: italic; margin-top: 20px;">
+                        <button @click="registerGuest">Ajouter l'invité</button>
+                    </div>
                 </div>
                 
                 <div v-else-if="!currentUser">
                     <p style="color: #666; font-style: italic; margin-top: 20px;">
                         Connectez-vous pour vous inscrire au match
                     </p>
-                </div><!-- Login Modal -->
-            </div>class="{ show: showLoginModal }">
+                </div>
+            </div>
         </div>
         
         <!-- Login Modal -->
-        <div class="modal" :class="{ show: showLoginModal }"><div v-if="error && showLoginModal" class="error">{{ error }}</div>
-            <div class="modal-content"></div>
+        <div class="modal" :class="{ show: showLoginModal }">
+            <div class="modal-content">
                 <h2>Connexion</h2>
-                <div class="form-group">
-                <div v-if="error && showLoginModal" class="error">{{ error }}</div>teur</label>
-                <div v-if="success && showLoginModal" class="success">{{ success }}</div>me" type="text" @keyup.enter="login" />
                 
-                <div class="form-group">lass="form-group">
-                    <label>Nom d'utilisateur</label>hiffres)</label>
-                    <input v-model="loginForm.username" type="text" @keyup.enter="login" />"password" maxlength="4" @keyup.enter="login" />
+                <div v-if="error && showLoginModal" class="error">{{ error }}</div>
+                <div v-if="success && showLoginModal" class="success">{{ success }}</div>
+                
+                <div class="form-group">
+                    <label>Nom d'utilisateur</label>
+                    <input v-model="loginForm.username" type="text" @keyup.enter="login" />
                 </div>
-                <div class="form-group">lass="button-group">
-                    <label>Code PIN (4 chiffres)</label>>Se connecter</button>
-                    <input v-model="loginForm.pin" type="password" maxlength="4" @keyup.enter="login" />rLoginForm(); clearError();">Annuler</button>
+                <div class="form-group">
+                    <label>Code PIN (4 chiffres)</label>
+                    <input v-model="loginForm.pin" type="password" maxlength="4" @keyup.enter="login" />
                 </div>
                 <div class="button-group">
                     <button @click="login">Se connecter</button>
                     <button @click="showLoginModal = false; clearLoginForm(); clearError();">Annuler</button>
-                </div><!-- Signup Modal -->
-            </div>lass="{ show: showSignupModal }">
+                </div>
+            </div>
         </div>
-        >
+        
         <!-- Signup Modal -->
-        <div class="modal" :class="{ show: showSignupModal }"><div v-if="error && showSignupModal" class="error">{{ error }}</div>
-            <div class="modal-content"></div>
+        <div class="modal" :class="{ show: showSignupModal }">
+            <div class="modal-content">
                 <h2>Créer un compte</h2>
-                <div class="form-group">
-                <div v-if="error && showSignupModal" class="error">{{ error }}</div>teur</label>
-                <div v-if="success && showSignupModal" class="success">{{ success }}</div>ame" type="text" />
                 
-                <div class="form-group">lass="form-group">
-                    <label>Nom d'utilisateur</label>hiffres)</label>
-                    <input v-model="signupForm.username" type="text" />="password" maxlength="4" />
+                <div v-if="error && showSignupModal" class="error">{{ error }}</div>
+                <div v-if="success && showSignupModal" class="success">{{ success }}</div>
+                
+                <div class="form-group">
+                    <label>Nom d'utilisateur</label>
+                    <input v-model="signupForm.username" type="text" />
                 </div>
-                <div class="form-group">lass="form-group">
-                    <label>Code PIN (4 chiffres)</label>tion</label>
-                    <input v-model="signupForm.pin" type="password" maxlength="4" />eToken" type="text" />
+                <div class="form-group">
+                    <label>Code PIN (4 chiffres)</label>
+                    <input v-model="signupForm.pin" type="password" maxlength="4" />
                 </div>
-                <div class="form-group">lass="button-group">
-                    <label>Code d'invitation</label>">Créer le compte</button>
-                    <input v-model="signupForm.inviteToken" type="text" />gnupForm(); clearError();">Annuler</button>
+                <div class="form-group">
+                    <label>Code d'invitation</label>
+                    <input v-model="signupForm.inviteToken" type="text" />
                 </div>
                 <div class="button-group">
                     <button @click="signup">Créer le compte</button>
                     <button @click="showSignupModal = false; clearSignupForm(); clearError();">Annuler</button>
-                </div><!-- Change PIN Modal -->
-            </div>="{ show: showChangePinModal }">
+                </div>
+            </div>
         </div>
-        </h2>
+        
         <!-- Change PIN Modal -->
-        <div class="modal" :class="{ show: showChangePinModal }"><div v-if="error && showChangePinModal" class="error">{{ error }}</div>
-            <div class="modal-content"></div>
+        <div class="modal" :class="{ show: showChangePinModal }">
+            <div class="modal-content">
                 <h2>Changer le code PIN</h2>
-                <div class="form-group">
-                <div v-if="error && showChangePinModal" class="error">{{ error }}</div>el</label>
-                <div v-if="success && showChangePinModal" class="success">{{ success }}</div>oldPin" type="password" maxlength="4" />
                 
-                <div class="form-group">lass="form-group">
-                    <label>Code PIN actuel</label>PIN (4 chiffres)</label>
-                    <input v-model="changePinForm.oldPin" type="password" maxlength="4" />password" maxlength="4" />
+                <div v-if="error && showChangePinModal" class="error">{{ error }}</div>
+                <div v-if="success && showChangePinModal" class="success">{{ success }}</div>
+                
+                <div class="form-group">
+                    <label>Code PIN actuel</label>
+                    <input v-model="changePinForm.oldPin" type="password" maxlength="4" />
                 </div>
-                <div class="form-group">lass="form-group">
-                    <label>Nouveau code PIN (4 chiffres)</label>nouveau code PIN</label>
-                    <input v-model="changePinForm.newPin" type="password" maxlength="4" />pe="password" maxlength="4" />
+                <div class="form-group">
+                    <label>Nouveau code PIN (4 chiffres)</label>
+                    <input v-model="changePinForm.newPin" type="password" maxlength="4" />
                 </div>
-                <div class="form-group">lass="button-group">
-                    <label>Confirmer le nouveau code PIN</label>Pin">Modifier</button>
-                    <input v-model="changePinForm.confirmPin" type="password" maxlength="4" />clearChangePinForm(); clearError();">Annuler</button>
+                <div class="form-group">
+                    <label>Confirmer le nouveau code PIN</label>
+                    <input v-model="changePinForm.confirmPin" type="password" maxlength="4" />
                 </div>
                 <div class="button-group">
                     <button @click="changePin">Modifier</button>
                     <button @click="showChangePinModal = false; clearChangePinForm(); clearError();">Annuler</button>
                 </div>
-            </div>    <script>
-        </div>t { createApp } = Vue;
+            </div>
+        </div>
     </div>
+
+    <script>
+        const { createApp } = Vue;
+
         createApp({
-    <script>{
-        const { createApp } = Vue;rn {
-: null,
-        createApp({'',
             data() {
-                return {',
-                    slot: null, null,
-                    guestName: '',lse,
-                    error: '',,
-                    success: '',se,
+                return {
+                    slot: null,
+                    guestName: '',
+                    error: '',
+                    success: '',
                     currentUser: null,
-                    showLoginModal: false,: '',
+                    showLoginModal: false,
                     showSignupModal: false,
                     showChangePinModal: false,
-                    loginForm: {gnupForm: {
-                        username: '', '',
+                    loginForm: {
+                        username: '',
                         pin: ''
-                    },ken: ''
+                    },
                     signupForm: {
-                        username: '',angePinForm: {
+                        username: '',
                         pin: '',
                         inviteToken: ''
-                    }, ''
+                    },
                     changePinForm: {
                         oldPin: '',
                         newPin: '',
-                        confirmPin: ''mputed: {
-                    }egistered() {
-                };tUser || !this.slot) return false;
-            },.username);
+                        confirmPin: ''
+                    }
+                };
+            },
             computed: {
                 isUserRegistered() {
-                    if (!this.currentUser || !this.slot) return false;thods: {
-                    return this.slot.players.includes(this.currentUser.username);fetchSlot() {
+                    if (!this.currentUser || !this.slot) return false;
+                    return this.slot.players.includes(this.currentUser.username);
                 }
-            },onst response = await fetch('/api/current-slot');
+            },
             methods: {
                 async fetchSlot() {
-                    try {= 'Erreur lors du chargement des données';
+                    try {
                         const response = await fetch('/api/current-slot');
                         this.slot = await response.json();
-                    } catch (err) {ync login() {
+                    } catch (err) {
                         this.error = 'Erreur lors du chargement des données';
-                    }onst response = await fetch('/api/auth/login', {
+                    }
                 },
-                async login() {tent-Type': 'application/json' },
+                async login() {
                     try {
                         const response = await fetch('/api/auth/login', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },const data = await response.json();
+                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(this.loginForm)
-                        });if (data.success) {
-                        r = data.user;
-                        const data = await response.json();User', JSON.stringify(data.user));
+                        });
+                        
+                        const data = await response.json();
                         
                         if (data.success) {
-                            this.currentUser = data.user;ion réussie';
-                            localStorage.setItem('currentUser', JSON.stringify(data.user)); 3000);
+                            this.currentUser = data.user;
+                            localStorage.setItem('currentUser', JSON.stringify(data.user));
                             this.showLoginModal = false;
                             this.clearLoginForm();
-                            this.success = 'Connexion réussie';.error = data.message;
-                            setTimeout(() => this.success = '', 3000);r = '', 3000);
+                            this.success = 'Connexion réussie';
+                            setTimeout(() => this.success = '', 3000);
                             await this.fetchSlot();
-                        } else {ch (err) {
-                            this.error = data.message;= 'Erreur lors de la connexion';
+                        } else {
+                            this.error = data.message;
                             setTimeout(() => this.error = '', 3000);
                         }
                     } catch (err) {
-                        this.error = 'Erreur lors de la connexion';ync signup() {
-                        setTimeout(() => this.error = '', 3000);nupForm.pin.length !== 4) {
-                    }enir 4 chiffres';
+                        this.error = 'Erreur lors de la connexion';
+                        setTimeout(() => this.error = '', 3000);
+                    }
                 },
                 async signup() {
                     if (this.signupForm.pin.length !== 4) {
                         this.error = 'Le code PIN doit contenir 4 chiffres';
-                        setTimeout(() => this.error = '', 3000);try {
-                        return;onst response = await fetch('/api/auth/signup', {
-                    }
-                    tent-Type': 'application/json' },
-                    try {
-                        const response = await fetch('/api/auth/signup', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },if (response.ok) {
-                            body: JSON.stringify(this.signupForm) 'Compte créé avec succès. Vous pouvez maintenant vous connecter.';
-                        });
-                        
-                        if (response.ok) {
-                            this.success = 'Compte créé avec succès. Vous pouvez maintenant vous connecter.'; '';
-                            this.showSignupModal = false;l = true;
-                            this.clearSignupForm();
-                            setTimeout(() => {
-                                this.success = '';t data = await response.json();
-                                this.showLoginModal = true;
-                            }, 2000);or = '', 3000);
-                        } else {
-                            const data = await response.json();ch (err) {
-                            this.error = data.detail;= 'Erreur lors de la création du compte';
-                            setTimeout(() => this.error = '', 3000);
-                        }
-                    } catch (err) {
-                        this.error = 'Erreur lors de la création du compte';gout() {
-                        setTimeout(() => this.error = '', 3000);urrentUser = null;
-                    }'currentUser');
-                },
-                logout() {000);
-                    this.currentUser = null;
-                    localStorage.removeItem('currentUser');ync registerSelf() {
-                    this.success = 'Déconnexion réussie';istered) {
-                    setTimeout(() => this.success = '', 3000);déjà inscrit';
-                },);
-                async registerSelf() {
-                    if (this.isUserRegistered) {
-                        this.error = 'Vous êtes déjà inscrit';
-                        setTimeout(() => this.error = '', 3000);try {
-                        return;onst response = await fetch(`/api/register?username=${this.currentUser.username}`, {
-                    }
-                    tent-Type': 'application/json' },
-                    try {ername })
-                        const response = await fetch(`/api/register?username=${this.currentUser.username}`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },if (response.ok) {
-                            body: JSON.stringify({ name: this.currentUser.username })chSlot();
-                        });tion réussie';
-                        000);
-                        if (response.ok) {
-                            await this.fetchSlot();t data = await response.json();
-                            this.success = 'Inscription réussie';
-                            setTimeout(() => this.success = '', 3000);or = '', 3000);
-                        } else {
-                            const data = await response.json();ch (err) {
-                            this.error = data.detail;= 'Erreur lors de l\'inscription';
-                            setTimeout(() => this.error = '', 3000);
-                        }
-                    } catch (err) {
-                        this.error = 'Erreur lors de l\'inscription';ync registerGuest() {
-                        setTimeout(() => this.error = '', 3000);.trim()) {
-                    }trer un nom pour l\'invité';
-                },
-                async registerGuest() {
-                    if (!this.guestName.trim()) {
-                        this.error = 'Veuillez entrer un nom pour l\'invité';
-                        setTimeout(() => this.error = '', 3000);try {
-                        return;onst response = await fetch(`/api/register-guest?username=${this.currentUser.username}`, {
-                    }
-                    tent-Type': 'application/json' },
-                    try { })
-                        const response = await fetch(`/api/register-guest?username=${this.currentUser.username}`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },if (response.ok) {
-                            body: JSON.stringify({ guestName: this.guestName })chSlot();
-                        });
-                        té ajouté avec succès';
-                        if (response.ok) {
-                            await this.fetchSlot();
-                            this.guestName = '';t data = await response.json();
-                            this.success = 'Invité ajouté avec succès';
-                            setTimeout(() => this.success = '', 3000);or = '', 3000);
-                        } else {
-                            const data = await response.json();ch (err) {
-                            this.error = data.detail;= 'Erreur lors de l\'ajout de l\'invité';
-                            setTimeout(() => this.error = '', 3000);
-                        }
-                    } catch (err) {
-                        this.error = 'Erreur lors de l\'ajout de l\'invité';ync deletePlayer(playerName) {
-                        setTimeout(() => this.error = '', 3000);scription de ${playerName} ?`)) {
-                    }
-                },
-                async deletePlayer(playerName) {
-                    if (!confirm(`Supprimer l'inscription de ${playerName} ?`)) {try {
-                        return;onst response = await fetch(`/api/unregister/${encodeURIComponent(playerName)}?username=${this.currentUser.username}`, {
+                        setTimeout(() => this.error = '', 3000);
+                        return;
                     }
                     
                     try {
-                        const response = await fetch(`/api/unregister/${encodeURIComponent(playerName)}?username=${this.currentUser.username}`, {if (response.ok) {
-                            method: 'DELETE'chSlot();
-                        });tion supprimée';
-                        0);
+                        const response = await fetch('/api/auth/signup', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.signupForm)
+                        });
+                        
                         if (response.ok) {
-                            await this.fetchSlot();t data = await response.json();
-                            this.success = 'Inscription supprimée';
-                            setTimeout(() => this.success = '', 3000);or = '', 3000);
+                            this.success = 'Compte créé avec succès. Vous pouvez maintenant vous connecter.';
+                            this.showSignupModal = false;
+                            this.clearSignupForm();
+                            setTimeout(() => {
+                                this.success = '';
+                                this.showLoginModal = true;
+                            }, 2000);
                         } else {
-                            const data = await response.json();ch (err) {
-                            this.error = data.detail;= 'Erreur lors de la suppression';
+                            const data = await response.json();
+                            this.error = data.detail;
                             setTimeout(() => this.error = '', 3000);
                         }
                     } catch (err) {
-                        this.error = 'Erreur lors de la suppression';nDelete(playerName) {
-                        setTimeout(() => this.error = '', 3000);er) return false;
-                    }') return true;
-                },n true;
-                canDelete(playerName) {]`)) return true;
-                    if (!this.currentUser) return false;
-                    if (this.currentUser.role === 'admin') return true;
-                    if (playerName === this.currentUser.username) return true;rmatDate(dateString) {
-                    if (playerName.includes(`[par ${this.currentUser.username}]`)) return true;e(dateString);
-                    return false;, {
-                },
-                formatDate(dateString) {
-                    const date = new Date(dateString);
-                    return date.toLocaleString('fr-FR', {,
-                        weekday: 'long',,
-                        year: 'numeric','
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',earLoginForm() {
-                        minute: '2-digit'.username = '';
-                    });
-                },
-                clearLoginForm() {earSignupForm() {
-                    this.loginForm.username = '';.username = '';
-                    this.loginForm.pin = '';
-                },en = '';
-                clearSignupForm() {
-                    this.signupForm.username = '';earError() {
-                    this.signupForm.pin = ''; = '';
-                    this.signupForm.inviteToken = '';';
-                },
-                clearError() {ync changePin() {
-                    this.error = '';PinForm.newPin.length !== 4 || !this.changePinForm.newPin.match(/^\d+$/)) {
-                    this.success = '';
+                        this.error = 'Erreur lors de la création du compte';
+                        setTimeout(() => this.error = '', 3000);
+                    }
                 },
                 async changePin() {
                     if (this.changePinForm.newPin.length !== 4 || !this.changePinForm.newPin.match(/^\d+$/)) {
                         this.error = 'Le nouveau code PIN doit contenir exactement 4 chiffres';
-                        setTimeout(() => this.error = '', 3000);if (this.changePinForm.newPin !== this.changePinForm.confirmPin) {
+                        setTimeout(() => this.error = '', 3000);
                         return;
                     }
                     
                     if (this.changePinForm.newPin !== this.changePinForm.confirmPin) {
                         this.error = 'Les codes PIN ne correspondent pas';
-                        setTimeout(() => this.error = '', 3000);try {
-                        return;onst response = await fetch(`/api/auth/change-pin?username=${this.currentUser.username}&old_pin=${this.changePinForm.oldPin}&new_pin=${this.changePinForm.newPin}`, {
+                        setTimeout(() => this.error = '', 3000);
+                        return;
                     }
                     
                     try {
-                        const response = await fetch(`/api/auth/change-pin?username=${this.currentUser.username}&old_pin=${this.changePinForm.oldPin}&new_pin=${this.changePinForm.newPin}`, {if (response.ok) {
-                            method: 'POST' 'Code PIN modifié avec succès';
+                        const response = await fetch(`/api/auth/change-pin?username=${this.currentUser.username}&old_pin=${this.changePinForm.oldPin}&new_pin=${this.changePinForm.newPin}`, {
+                            method: 'POST'
                         });
                         
-                        if (response.ok) { '';
-                            this.success = 'Code PIN modifié avec succès';Modal = false;
+                        if (response.ok) {
+                            this.success = 'Code PIN modifié avec succès';
                             this.clearChangePinForm();
                             setTimeout(() => {
-                                this.success = '';t data = await response.json();
+                                this.success = '';
                                 this.showChangePinModal = false;
-                            }, 2000);or = '', 3000);
+                            }, 2000);
                         } else {
-                            const data = await response.json();ch (err) {
-                            this.error = data.detail;= 'Erreur lors de la modification du code PIN';
+                            const data = await response.json();
+                            this.error = data.detail;
                             setTimeout(() => this.error = '', 3000);
                         }
                     } catch (err) {
-                        this.error = 'Erreur lors de la modification du code PIN';earChangePinForm() {
-                        setTimeout(() => this.error = '', 3000);.oldPin = '';
+                        this.error = 'Erreur lors de la modification du code PIN';
+                        setTimeout(() => this.error = '', 3000);
                     }
-                }, '';
+                },
+                logout() {
+                    this.currentUser = null;
+                    localStorage.removeItem('currentUser');
+                    this.success = 'Déconnexion réussie';
+                    setTimeout(() => this.success = '', 3000);
+                },
+                async registerSelf() {
+                    if (this.isUserRegistered) {
+                        this.error = 'Vous êtes déjà inscrit';
+                        setTimeout(() => this.error = '', 3000);
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`/api/register?username=${this.currentUser.username}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: this.currentUser.username })
+                        });
+                        
+                        if (response.ok) {
+                            await this.fetchSlot();
+                            this.success = 'Inscription réussie';
+                            setTimeout(() => this.success = '', 3000);
+                        } else {
+                            const data = await response.json();
+                            this.error = data.detail;
+                            setTimeout(() => this.error = '', 3000);
+                        }
+                    } catch (err) {
+                        this.error = 'Erreur lors de l\'inscription';
+                        setTimeout(() => this.error = '', 3000);
+                    }
+                },
+                async registerGuest() {
+                    if (!this.guestName.trim()) {
+                        this.error = 'Veuillez entrer un nom pour l\'invité';
+                        setTimeout(() => this.error = '', 3000);
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`/api/register-guest?username=${this.currentUser.username}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ guestName: this.guestName })
+                        });
+                        
+                        if (response.ok) {
+                            await this.fetchSlot();
+                            this.guestName = '';
+                            this.success = 'Invité ajouté avec succès';
+                            setTimeout(() => this.success = '', 3000);
+                        } else {
+                            const data = await response.json();
+                            this.error = data.detail;
+                            setTimeout(() => this.error = '', 3000);
+                        }
+                    } catch (err) {
+                        this.error = 'Erreur lors de l\'ajout de l\'invité';
+                        setTimeout(() => this.error = '', 3000);
+                    }
+                },
+                async deletePlayer(playerName) {
+                    if (!confirm(`Supprimer l'inscription de ${playerName} ?`)) {
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`/api/unregister/${encodeURIComponent(playerName)}?username=${this.currentUser.username}`, {
+                            method: 'DELETE'
+                        });
+                        
+                        if (response.ok) {
+                            await this.fetchSlot();
+                            this.success = 'Inscription supprimée';
+                            setTimeout(() => this.success = '', 3000);
+                        } else {
+                            const data = await response.json();
+                            this.error = data.detail;
+                            setTimeout(() => this.error = '', 3000);
+                        }
+                    } catch (err) {
+                        this.error = 'Erreur lors de la suppression';
+                        setTimeout(() => this.error = '', 3000);
+                    }
+                },
+                canDelete(playerName) {
+                    if (!this.currentUser) return false;
+                    if (this.currentUser.role === 'admin') return true;
+                    if (playerName === this.currentUser.username) return true;
+                    if (playerName.includes(`[par ${this.currentUser.username}]`)) return true;
+                    return false;
+                },
+                formatDate(dateString) {
+                    const date = new Date(dateString);
+                    return date.toLocaleString('fr-FR', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                },
+                clearLoginForm() {
+                    this.loginForm.username = '';
+                    this.loginForm.pin = '';
+                },
+                clearSignupForm() {
+                    this.signupForm.username = '';
+                    this.signupForm.pin = '';
+                    this.signupForm.inviteToken = '';
+                },
                 clearChangePinForm() {
                     this.changePinForm.oldPin = '';
-                    this.changePinForm.newPin = '';unted() {
-                    this.changePinForm.confirmPin = '';toredUser = localStorage.getItem('currentUser');
+                    this.changePinForm.newPin = '';
+                    this.changePinForm.confirmPin = '';
+                },
+                clearError() {
+                    this.error = '';
+                    this.success = '';
                 }
-            },ser = JSON.parse(storedUser);
+            },
             mounted() {
                 const storedUser = localStorage.getItem('currentUser');
-                if (storedUser) {this.fetchSlot();
-                    this.currentUser = JSON.parse(storedUser);fetchSlot, 30000);
+                if (storedUser) {
+                    this.currentUser = JSON.parse(storedUser);
                 }
-                unt('#app');
+                
                 this.fetchSlot();
                 setInterval(this.fetchSlot, 30000);
             }
-        }).mount('#app');    </script>
+        }).mount('#app');
+    </script>
 </body>
 </html>
