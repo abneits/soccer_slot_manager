@@ -429,19 +429,20 @@
                 
                 <!-- Registration forms section - moved to top -->
                 <div v-if="currentUser" class="registration-section">
-                    <div v-if="!isUserRegistered && slot.player_count < 10">
-                        <button @click="registerSelf">M'inscrire</button>
+                    <div v-if="!isUserRegistered && slot.player_count < 10" style="text-align: center; margin-bottom: 20px;">
+                        <button @click="registerSelf" style="padding: 15px 40px; font-size: 1.2em; font-weight: 600;">M'inscrire</button>
                     </div>
                     
                     <div v-if="slot.player_count < 10" class="guest-section">
                         <h3>Ajouter un invité</h3>
-                        <div class="form-group">
+                        <div class="form-group" style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
                             <input 
                                 v-model="guestName" 
                                 placeholder="Nom de l'invité"
                                 type="text"
                                 @keyup.enter="registerGuest"
                                 :disabled="isProcessing"
+                                style="max-width: 300px;"
                             />
                             <button @click="registerGuest" :disabled="isProcessing">Ajouter invité</button>
                         </div>
@@ -459,14 +460,14 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="index in 10" :key="index">
-                            <td>{{ index }}</td>
-                            <td>{{ slot.players[index - 1] || '-' }}</td>
-                            <td>{{ slot.timestamps[index - 1] ? formatDateTime(slot.timestamps[index - 1]) : '-' }}</td>
+                        <tr v-for="(item, index) in sortedPlayers" :key="index">
+                            <td>{{ index + 1 }}</td>
+                            <td>{{ item.player || '-' }}</td>
+                            <td>{{ item.timestamp ? formatDateTime(item.timestamp) : '-' }}</td>
                             <td v-if="currentUser">
                                 <button 
-                                    v-if="slot.players[index - 1] && canDelete(slot.players[index - 1])"
-                                    @click="deletePlayer(slot.players[index - 1])"
+                                    v-if="item.player && canDelete(item.player)"
+                                    @click="deletePlayer(item.player)"
                                     class="delete-btn"
                                 >
                                     ✕ Supprimer
@@ -590,6 +591,30 @@
                 isUserRegistered() {
                     if (!this.currentUser || !this.slot) return false;
                     return this.slot.players.includes(this.currentUser.username);
+                },
+                sortedPlayers() {
+                    if (!this.slot || !this.slot.players || !this.slot.timestamps) return [];
+                    
+                    // Create array of objects with player and timestamp
+                    const playersWithTimestamps = this.slot.players.map((player, index) => ({
+                        player: player,
+                        timestamp: this.slot.timestamps[index] || null,
+                        originalIndex: index
+                    }));
+                    
+                    // Sort by timestamp (ascending - earliest first)
+                    const sorted = playersWithTimestamps.sort((a, b) => {
+                        if (!a.timestamp) return 1;
+                        if (!b.timestamp) return -1;
+                        return new Date(a.timestamp) - new Date(b.timestamp);
+                    });
+                    
+                    // Fill empty slots to reach 10 total
+                    while (sorted.length < 10) {
+                        sorted.push({ player: null, timestamp: null, originalIndex: sorted.length });
+                    }
+                    
+                    return sorted;
                 }
             },
             methods: {
