@@ -200,6 +200,99 @@
         .back-link:hover {
             text-decoration: underline;
         }
+        
+        .team-builder {
+            margin-top: 40px;
+            padding: 30px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .team-builder h2 {
+            margin-bottom: 20px;
+        }
+        
+        .players-pool {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .player-item {
+            display: inline-block;
+            padding: 8px 15px;
+            margin: 5px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .player-item:hover {
+            background-color: #007bff;
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        .player-item.selected {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .teams-builder-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .team-drop-zone {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            min-height: 200px;
+        }
+        
+        .team-drop-zone h3 {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid;
+        }
+        
+        .team-drop-zone.team-a h3 {
+            color: #007bff;
+            border-color: #007bff;
+        }
+        
+        .team-drop-zone.team-b h3 {
+            color: #dc3545;
+            border-color: #dc3545;
+        }
+        
+        .team-member {
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .score-inputs {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+            align-items: center;
+        }
+        
+        .score-inputs input {
+            width: 80px;
+            text-align: center;
+            font-size: 1.5em;
+            padding: 10px;
+        }
     </style>
 </head>
 <body>
@@ -240,6 +333,105 @@
                     </tr>
                 </tbody>
             </table>
+            
+            <!-- Team Composition Builder -->
+            <div class="team-builder">
+                <h2>⚽ Composition des équipes</h2>
+                
+                <div v-if="slot">
+                    <p><strong>Match du:</strong> {{ formatDate(slot.date) }}</p>
+                    <p><strong>Joueurs inscrits:</strong> {{ slot.player_count }}</p>
+                    
+                    <!-- Players Pool -->
+                    <div class="players-pool">
+                        <h3>Joueurs disponibles (cliquez pour sélectionner)</h3>
+                        <div v-if="availablePlayers.length > 0">
+                            <span 
+                                v-for="(player, index) in availablePlayers" 
+                                :key="index"
+                                class="player-item"
+                                :class="{ selected: selectedPlayer === player }"
+                                @click="selectPlayer(player)"
+                            >
+                                {{ player.name }}
+                            </span>
+                        </div>
+                        <p v-else style="color: #666;">Tous les joueurs sont assignés à une équipe</p>
+                    </div>
+                    
+                    <!-- Teams Grid -->
+                    <div class="teams-builder-grid">
+                        <!-- Team A -->
+                        <div class="team-drop-zone team-a">
+                            <h3>🔵 Équipe A ({{ teamA.length }}/5)</h3>
+                            <div v-if="teamA.length > 0">
+                                <div v-for="(player, index) in teamA" :key="'a-' + index" class="team-member">
+                                    <span>{{ player.name }}</span>
+                                    <button class="danger" style="padding: 5px 10px; font-size: 0.9em;" @click="removeFromTeam('A', index)">Retirer</button>
+                                </div>
+                            </div>
+                            <button 
+                                v-if="selectedPlayer && teamA.length < 5"
+                                @click="addToTeam('A')"
+                                style="width: 100%; margin-top: 10px;"
+                            >
+                                Ajouter à l'équipe A
+                            </button>
+                        </div>
+                        
+                        <!-- Team B -->
+                        <div class="team-drop-zone team-b">
+                            <h3>🔴 Équipe B ({{ teamB.length }}/5)</h3>
+                            <div v-if="teamB.length > 0">
+                                <div v-for="(player, index) in teamB" :key="'b-' + index" class="team-member">
+                                    <span>{{ player.name }}</span>
+                                    <button class="danger" style="padding: 5px 10px; font-size: 0.9em;" @click="removeFromTeam('B', index)">Retirer</button>
+                                </div>
+                            </div>
+                            <button 
+                                v-if="selectedPlayer && teamB.length < 5"
+                                @click="addToTeam('B')"
+                                style="width: 100%; margin-top: 10px;"
+                            >
+                                Ajouter à l'équipe B
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Save Teams Button -->
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button 
+                            @click="saveTeams"
+                            :disabled="teamA.length !== 5 || teamB.length !== 5"
+                            style="padding: 15px 40px; font-size: 1.1em;"
+                        >
+                            Enregistrer les équipes
+                        </button>
+                    </div>
+                    
+                    <!-- Score Inputs -->
+                    <div v-if="teamA.length === 5 && teamB.length === 5">
+                        <h3 style="text-align: center; margin-top: 30px;">Score du match</h3>
+                        <div class="score-inputs">
+                            <div>
+                                <label>Équipe A</label>
+                                <input v-model.number="teamAScore" type="number" min="0" />
+                            </div>
+                            <span style="font-size: 2em;">-</span>
+                            <div>
+                                <label>Équipe B</label>
+                                <input v-model.number="teamBScore" type="number" min="0" />
+                            </div>
+                        </div>
+                        <div style="text-align: center; margin-top: 20px;">
+                            <button @click="saveScores" style="padding: 12px 30px;">Enregistrer le score</button>
+                        </div>
+                    </div>
+                </div>
+                <div v-else>
+                    <p>Chargement des données...</p>
+                </div>
+            </div>
         </div>
         
         <!-- Invite Token Modal -->
@@ -271,8 +463,22 @@
                     error: '',
                     success: '',
                     showInviteModal: false,
-                    generatedToken: null
+                    generatedToken: null,
+                    slot: null,
+                    teamA: [],
+                    teamB: [],
+                    teamAScore: 0,
+                    teamBScore: 0,
+                    selectedPlayer: null,
+                    allPlayers: []
                 };
+            },
+            computed: {
+                availablePlayers() {
+                    if (!this.allPlayers) return [];
+                    const assignedIds = [...this.teamA.map(p => p.id), ...this.teamB.map(p => p.id)];
+                    return this.allPlayers.filter(p => !assignedIds.includes(p.id));
+                }
             },
             methods: {
                 async checkAuth() {
@@ -291,6 +497,7 @@
                     }
                     
                     await this.fetchUsers();
+                    await this.fetchSlot();
                 },
                 async fetchUsers() {
                     try {
@@ -375,6 +582,114 @@
                         }
                     } catch (err) {
                         this.error = 'Erreur lors de la réinitialisation du PIN';
+                        setTimeout(() => this.error = '', 3000);
+                    }
+                },
+                async fetchSlot() {
+                    try {
+                        const response = await fetch(`/api/admin/slot-details?admin_username=${this.currentUser.username}`);
+                        const data = await response.json();
+                        
+                        // Store data in slot format
+                        this.slot = {
+                            date: data.date,
+                            player_count: data.players.length
+                        };
+                        
+                        // Build all players list with IDs
+                        this.allPlayers = data.players;
+                        
+                        // Load existing teams if present
+                        if (data.teamA && data.teamA.length > 0) {
+                            this.teamA = [...data.teamA];
+                        }
+                        if (data.teamB && data.teamB.length > 0) {
+                            this.teamB = [...data.teamB];
+                        }
+                        
+                        // Load scores
+                        this.teamAScore = data.teamAScore || 0;
+                        this.teamBScore = data.teamBScore || 0;
+                        
+                    } catch (err) {
+                        this.error = 'Erreur lors du chargement du créneau';
+                        console.error(err);
+                    }
+                },
+                selectPlayer(player) {
+                    this.selectedPlayer = player;
+                },
+                addToTeam(team) {
+                    if (!this.selectedPlayer) return;
+                    
+                    if (team === 'A' && this.teamA.length < 5) {
+                        this.teamA.push(this.selectedPlayer);
+                        this.selectedPlayer = null;
+                    } else if (team === 'B' && this.teamB.length < 5) {
+                        this.teamB.push(this.selectedPlayer);
+                        this.selectedPlayer = null;
+                    }
+                },
+                removeFromTeam(team, index) {
+                    if (team === 'A') {
+                        this.teamA.splice(index, 1);
+                    } else {
+                        this.teamB.splice(index, 1);
+                    }
+                },
+                async saveTeams() {
+                    if (this.teamA.length !== 5 || this.teamB.length !== 5) {
+                        this.error = 'Chaque équipe doit avoir exactement 5 joueurs';
+                        setTimeout(() => this.error = '', 3000);
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`/api/admin/set-teams?admin_username=${this.currentUser.username}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                teamA: this.teamA.map(p => p.id),
+                                teamB: this.teamB.map(p => p.id)
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            this.success = 'Équipes enregistrées avec succès';
+                            await this.fetchSlot();
+                            setTimeout(() => this.success = '', 3000);
+                        } else {
+                            const data = await response.json();
+                            this.error = data.detail;
+                            setTimeout(() => this.error = '', 3000);
+                        }
+                    } catch (err) {
+                        this.error = 'Erreur lors de l\'enregistrement des équipes';
+                        setTimeout(() => this.error = '', 3000);
+                    }
+                },
+                async saveScores() {
+                    try {
+                        const response = await fetch(`/api/admin/set-scores?admin_username=${this.currentUser.username}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                teamAScore: this.teamAScore,
+                                teamBScore: this.teamBScore
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            this.success = 'Score enregistré avec succès';
+                            await this.fetchSlot();
+                            setTimeout(() => this.success = '', 3000);
+                        } else {
+                            const data = await response.json();
+                            this.error = data.detail;
+                            setTimeout(() => this.error = '', 3000);
+                        }
+                    } catch (err) {
+                        this.error = 'Erreur lors de l\'enregistrement du score';
                         setTimeout(() => this.error = '', 3000);
                     }
                 },

@@ -19,7 +19,9 @@ from app.models import (
     LoginRequest,
     LoginResponse,
     InviteTokenResponse,
-    GuestRegistration
+    GuestRegistration,
+    TeamComposition,
+    TeamScores
 )
 
 # Load environment variables
@@ -66,6 +68,32 @@ def get_next_wednesday_at_19() -> datetime:
         target_date = target_date.replace(hour=MATCH_HOUR, minute=MATCH_MINUTE, second=0, microsecond=0)
     
     return target_date
+
+
+def is_registration_open() -> bool:
+    """
+    Check if registration is currently allowed.
+    
+    Business Logic:
+    - Registration is open from Monday 12:00 (noon) to Wednesday 20:00 (8PM)
+    - Outside this window, team composition should be displayed instead
+    """
+    now = datetime.now()
+    current_weekday = now.weekday()  # 0=Monday, 2=Wednesday
+    
+    # Monday (0) at or after 12:00
+    if current_weekday == 0 and now.hour >= 12:
+        return True
+    
+    # Tuesday (1) - all day
+    if current_weekday == 1:
+        return True
+    
+    # Wednesday (2) before 20:00
+    if current_weekday == 2 and now.hour < 20:
+        return True
+    
+    return False
 
 
 @asynccontextmanager
@@ -180,7 +208,11 @@ async def get_current_slot():
         new_slot = {
             "date": target_date,
             "players": [],
-            "guests": []
+            "guests": [],
+            "teamA": [],
+            "teamB": [],
+            "teamAScore": None,
+            "teamBScore": None
         }
         await collection.insert_one(new_slot)
         slot_doc = new_slot
@@ -195,18 +227,54 @@ async def get_current_slot():
     guest_timestamps = [g.get("registeredAt", slot_doc["date"]).isoformat() if isinstance(g.get("registeredAt"), datetime) else g.get("registeredAt", slot_doc["date"].isoformat()) for g in slot_doc.get("guests", [])]
     all_timestamps = player_timestamps + guest_timestamps
     
+    # Get team compositions with player details
+    users_collection = get_users_collection()
+    teamA_details = []
+    teamB_details = []
+    
+    for player_id in slot_doc.get("teamA", []):
+        # First check in registered players
+        player_match = next((p for p in slot_doc.get("players", []) if p.get("user_id") == player_id), None)
+        if player_match:
+            teamA_details.append({"id": player_id, "name": player_match["username"], "type": "user"})
+        else:
+            # Check in guests
+            guest_match = next((g for g in slot_doc.get("guests", []) if g.get("guest_id") == player_id), None)
+            if guest_match:
+                teamA_details.append({"id": player_id, "name": f"(Invité) {guest_match['name']}", "type": "guest"})
+    
+    for player_id in slot_doc.get("teamB", []):
+        # First check in registered players
+        player_match = next((p for p in slot_doc.get("players", []) if p.get("user_id") == player_id), None)
+        if player_match:
+            teamB_details.append({"id": player_id, "name": player_match["username"], "type": "user"})
+        else:
+            # Check in guests
+            guest_match = next((g for g in slot_doc.get("guests", []) if g.get("guest_id") == player_id), None)
+            if guest_match:
+                teamB_details.append({"id": player_id, "name": f"(Invité) {guest_match['name']}", "type": "guest"})
+    
     return SlotResponse(
         date=slot_doc["date"].isoformat(),
         players=all_players,
         player_count=len(all_players),
         max_players=MAX_PLAYERS,
-        timestamps=all_timestamps
+        timestamps=all_timestamps,
+        teamA=teamA_details,
+        teamB=teamB_details,
+        teamAScore=slot_doc.get("teamAScore"),
+        teamBScore=slot_doc.get("teamBScore"),
+        isRegistrationOpen=is_registration_open()
     )
 
 
 @app.post("/api/register", response_model=SlotResponse)
 async def register_player(registration: PlayerRegistration, username: str):
     """Register authenticated user to the current slot"""
+    # Check if registration is allowed
+    if not is_registration_open():
+        raise HTTPException(status_code=403, detail="Les inscriptions sont fermées. Elles sont ouvertes du lundi 12h au mercredi 20h.")
+    
     # Verify user is authenticated
     users = get_users_collection()
     user = await users.find_one({"username": username})
@@ -263,13 +331,22 @@ async def register_player(registration: PlayerRegistration, username: str):
         players=players_list + guests_list,
         player_count=total_registered,
         max_players=MAX_PLAYERS,
-        timestamps=all_timestamps
+        timestamps=all_timestamps,
+        teamA=[],
+        teamB=[],
+        teamAScore=updated_slot.get("teamAScore"),
+        teamBScore=updated_slot.get("teamBScore"),
+        isRegistrationOpen=is_registration_open()
     )
 
 
 @app.post("/api/register-guest", response_model=SlotResponse)
 async def register_guest(guest: GuestRegistration, username: str):
     """Register a guest player (added by authenticated user)"""
+    # Check if registration is allowed
+    if not is_registration_open():
+        raise HTTPException(status_code=403, detail="Les inscriptions sont fermées. Elles sont ouvertes du lundi 12h au mercredi 20h.")
+    
     users = get_users_collection()
     user = await users.find_one({"username": username})
     if not user:
@@ -299,10 +376,15 @@ async def register_guest(guest: GuestRegistration, username: str):
     if guest.guestName in existing_guests:
         raise HTTPException(status_code=400, detail="Un invité avec ce nom est déjà inscrit")
     
+    # Generate unique guest_id (use timestamp + name hash for uniqueness)
+    import hashlib
+    guest_id = f"guest_{hashlib.md5(f\"{guest.guestName}{datetime.now().timestamp()}\".encode()).hexdigest()[:8]}"
+    
     # Add guest with invitator reference
     await collection.update_one(
         {"date": target_date},
         {"$push": {"guests": {
+            "guest_id": guest_id,
             "name": guest.guestName,
             "invitedBy_id": str(user["_id"]),
             "invitedBy": username,
@@ -326,7 +408,12 @@ async def register_guest(guest: GuestRegistration, username: str):
         players=players_list + guests_list,
         player_count=total_registered,
         max_players=MAX_PLAYERS,
-        timestamps=all_timestamps
+        timestamps=all_timestamps,
+        teamA=[],
+        teamB=[],
+        teamAScore=updated_slot.get("teamAScore"),
+        teamBScore=updated_slot.get("teamBScore"),
+        isRegistrationOpen=is_registration_open()
     )
 
 
@@ -592,6 +679,241 @@ async def generate_invite_token(admin_username: str):
     await invitations.insert_one(invitation)
     
     return InviteTokenResponse(token=token, expiresAt=expires_at)
+
+
+# =============================================================================
+# TEAM COMPOSITION ENDPOINTS (ADMIN ONLY)
+# =============================================================================
+
+@app.post("/api/admin/set-teams", response_model=SlotResponse)
+async def set_team_composition(teams: TeamComposition, admin_username: str):
+    """Set team composition for the current slot (admin only)"""
+    users = get_users_collection()
+    
+    # Verify admin
+    admin = await users.find_one({"username": admin_username, "role": "admin"})
+    if not admin:
+        raise HTTPException(status_code=403, detail="Accès administrateur requis")
+    
+    # Validate team sizes
+    if len(teams.teamA) != 5:
+        raise HTTPException(status_code=400, detail="L'équipe A doit avoir exactement 5 joueurs")
+    if len(teams.teamB) != 5:
+        raise HTTPException(status_code=400, detail="L'équipe B doit avoir exactement 5 joueurs")
+    
+    # Check for duplicates across teams
+    all_team_players = set(teams.teamA + teams.teamB)
+    if len(all_team_players) != 10:
+        raise HTTPException(status_code=400, detail="Un joueur ne peut pas être dans les deux équipes")
+    
+    collection = get_collection()
+    target_date = get_next_wednesday_at_19()
+    
+    slot = await collection.find_one({"date": target_date})
+    if not slot:
+        raise HTTPException(status_code=404, detail="Créneau non trouvé")
+    
+    # Verify all player IDs exist in the slot (players or guests)
+    registered_player_ids = [p["user_id"] for p in slot.get("players", [])]
+    registered_guest_ids = [g.get("guest_id", str(i)) for i, g in enumerate(slot.get("guests", []))]
+    all_registered_ids = registered_player_ids + registered_guest_ids
+    
+    for player_id in teams.teamA + teams.teamB:
+        if player_id not in all_registered_ids:
+            raise HTTPException(status_code=400, detail=f"Joueur {player_id} non trouvé dans les inscrits")
+    
+    # Update team composition
+    await collection.update_one(
+        {"date": target_date},
+        {"$set": {
+            "teamA": teams.teamA,
+            "teamB": teams.teamB
+        }}
+    )
+    
+    # Return updated slot
+    updated_slot = await collection.find_one({"date": target_date})
+    
+    # Format response
+    players_list = [p["username"] for p in updated_slot.get("players", [])]
+    guests_list = [f"(Invité) {g['name']} [par {g['invitedBy']}]" for g in updated_slot.get("guests", [])]
+    all_players = players_list + guests_list
+    
+    player_timestamps = [p.get("registeredAt", updated_slot["date"]).isoformat() if isinstance(p.get("registeredAt"), datetime) else p.get("registeredAt", updated_slot["date"].isoformat()) for p in updated_slot.get("players", [])]
+    guest_timestamps = [g.get("registeredAt", updated_slot["date"]).isoformat() if isinstance(g.get("registeredAt"), datetime) else g.get("registeredAt", updated_slot["date"].isoformat()) for g in updated_slot.get("guests", [])]
+    all_timestamps = player_timestamps + guest_timestamps
+    
+    # Get team details
+    teamA_details = []
+    teamB_details = []
+    
+    for player_id in updated_slot.get("teamA", []):
+        player_match = next((p for p in updated_slot.get("players", []) if p.get("user_id") == player_id), None)
+        if player_match:
+            teamA_details.append({"id": player_id, "name": player_match["username"], "type": "user"})
+        else:
+            guest_match = next((g for g in updated_slot.get("guests", []) if g.get("guest_id") == player_id), None)
+            if guest_match:
+                teamA_details.append({"id": player_id, "name": f"(Invité) {guest_match['name']}", "type": "guest"})
+    
+    for player_id in updated_slot.get("teamB", []):
+        player_match = next((p for p in updated_slot.get("players", []) if p.get("user_id") == player_id), None)
+        if player_match:
+            teamB_details.append({"id": player_id, "name": player_match["username"], "type": "user"})
+        else:
+            guest_match = next((g for g in updated_slot.get("guests", []) if g.get("guest_id") == player_id), None)
+            if guest_match:
+                teamB_details.append({"id": player_id, "name": f"(Invité) {guest_match['name']}", "type": "guest"})
+    
+    return SlotResponse(
+        date=updated_slot["date"].isoformat(),
+        players=all_players,
+        player_count=len(all_players),
+        max_players=MAX_PLAYERS,
+        timestamps=all_timestamps,
+        teamA=teamA_details,
+        teamB=teamB_details,
+        teamAScore=updated_slot.get("teamAScore"),
+        teamBScore=updated_slot.get("teamBScore"),
+        isRegistrationOpen=is_registration_open()
+    )
+
+@app.get("/api/admin/slot-details")
+async def get_slot_details_for_admin(admin_username: str):
+    """Get detailed slot information with player IDs for admin team composition"""
+    users = get_users_collection()
+    
+    # Verify admin
+    admin = await users.find_one({"username": admin_username, "role": "admin"})
+    if not admin:
+        raise HTTPException(status_code=403, detail="Accès administrateur requis")
+    
+    collection = get_collection()
+    target_date = get_next_wednesday_at_19()
+    
+    slot_doc = await collection.find_one({"date": target_date})
+    if not slot_doc:
+        raise HTTPException(status_code=404, detail="Créneau non trouvé")
+    
+    # Build players list with IDs
+    players_with_ids = []
+    for player in slot_doc.get("players", []):
+        players_with_ids.append({
+            "id": player["user_id"],
+            "name": player["username"],
+            "type": "user"
+        })
+    
+    for guest in slot_doc.get("guests", []):
+        players_with_ids.append({
+            "id": guest.get("guest_id", ""),
+            "name": f"(Invité) {guest['name']} [par {guest['invitedBy']}]",
+            "type": "guest"
+        })
+    
+    # Get current team compositions
+    teamA_details = []
+    teamB_details = []
+    
+    for player_id in slot_doc.get("teamA", []):
+        player_match = next((p for p in slot_doc.get("players", []) if p.get("user_id") == player_id), None)
+        if player_match:
+            teamA_details.append({"id": player_id, "name": player_match["username"], "type": "user"})
+        else:
+            guest_match = next((g for g in slot_doc.get("guests", []) if g.get("guest_id") == player_id), None)
+            if guest_match:
+                teamA_details.append({"id": player_id, "name": f"(Invité) {guest_match['name']}", "type": "guest"})
+    
+    for player_id in slot_doc.get("teamB", []):
+        player_match = next((p for p in slot_doc.get("players", []) if p.get("user_id") == player_id), None)
+        if player_match:
+            teamB_details.append({"id": player_id, "name": player_match["username"], "type": "user"})
+        else:
+            guest_match = next((g for g in slot_doc.get("guests", []) if g.get("guest_id") == player_id), None)
+            if guest_match:
+                teamB_details.append({"id": player_id, "name": f"(Invité) {guest_match['name']}", "type": "guest"})
+    
+    return {
+        "date": slot_doc["date"].isoformat(),
+        "players": players_with_ids,
+        "teamA": teamA_details,
+        "teamB": teamB_details,
+        "teamAScore": slot_doc.get("teamAScore"),
+        "teamBScore": slot_doc.get("teamBScore")
+    }
+
+@app.post("/api/admin/set-scores", response_model=SlotResponse)
+async def set_team_scores(scores: TeamScores, admin_username: str):
+    """Update team scores for the current slot (admin only)"""
+    users = get_users_collection()
+    
+    # Verify admin
+    admin = await users.find_one({"username": admin_username, "role": "admin"})
+    if not admin:
+        raise HTTPException(status_code=403, detail="Accès administrateur requis")
+    
+    collection = get_collection()
+    target_date = get_next_wednesday_at_19()
+    
+    slot = await collection.find_one({"date": target_date})
+    if not slot:
+        raise HTTPException(status_code=404, detail="Créneau non trouvé")
+    
+    # Update scores
+    await collection.update_one(
+        {"date": target_date},
+        {"$set": {
+            "teamAScore": scores.teamAScore,
+            "teamBScore": scores.teamBScore
+        }}
+    )
+    
+    # Return updated slot
+    updated_slot = await collection.find_one({"date": target_date})
+    
+    # Format response
+    players_list = [p["username"] for p in updated_slot.get("players", [])]
+    guests_list = [f"(Invité) {g['name']} [par {g['invitedBy']}]" for g in updated_slot.get("guests", [])]
+    all_players = players_list + guests_list
+    
+    player_timestamps = [p.get("registeredAt", updated_slot["date"]).isoformat() if isinstance(p.get("registeredAt"), datetime) else p.get("registeredAt", updated_slot["date"].isoformat()) for p in updated_slot.get("players", [])]
+    guest_timestamps = [g.get("registeredAt", updated_slot["date"]).isoformat() if isinstance(g.get("registeredAt"), datetime) else g.get("registeredAt", updated_slot["date"].isoformat()) for g in updated_slot.get("guests", [])]
+    all_timestamps = player_timestamps + guest_timestamps
+    
+    # Get team details
+    teamA_details = []
+    teamB_details = []
+    
+    for player_id in updated_slot.get("teamA", []):
+        player_match = next((p for p in updated_slot.get("players", []) if p.get("user_id") == player_id), None)
+        if player_match:
+            teamA_details.append({"id": player_id, "name": player_match["username"], "type": "user"})
+        else:
+            guest_match = next((g for g in updated_slot.get("guests", []) if g.get("guest_id") == player_id), None)
+            if guest_match:
+                teamA_details.append({"id": player_id, "name": f"(Invité) {guest_match['name']}", "type": "guest"})
+    
+    for player_id in updated_slot.get("teamB", []):
+        player_match = next((p for p in updated_slot.get("players", []) if p.get("user_id") == player_id), None)
+        if player_match:
+            teamB_details.append({"id": player_id, "name": player_match["username"], "type": "user"})
+        else:
+            guest_match = next((g for g in updated_slot.get("guests", []) if g.get("guest_id") == player_id), None)
+            if guest_match:
+                teamB_details.append({"id": player_id, "name": f"(Invité) {guest_match['name']}", "type": "guest"})
+    
+    return SlotResponse(
+        date=updated_slot["date"].isoformat(),
+        players=all_players,
+        player_count=len(all_players),
+        max_players=MAX_PLAYERS,
+        timestamps=all_timestamps,
+        teamA=teamA_details,
+        teamB=teamB_details,
+        teamAScore=updated_slot.get("teamAScore"),
+        teamBScore=updated_slot.get("teamBScore"),
+        isRegistrationOpen=is_registration_open()
+    )
 
 
 # =============================================================================
