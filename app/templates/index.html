@@ -428,18 +428,20 @@
                 </div>
                 
                 <!-- Registration forms section - moved to top -->
-                <div v-if="currentUser && slot.player_count < 10" class="registration-section" style="display: flex; justify-content: center; align-items: center; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;">
+                <div v-if="currentUser && slot.player_count < 10" class="registration-section" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
                     <button v-if="!isUserRegistered" @click="registerSelf" style="padding: 15px 40px; font-size: 1.2em; font-weight: 600;">M'inscrire</button>
                     
-                    <input 
-                        v-model="guestName" 
-                        placeholder="Nom de l'invité"
-                        type="text"
-                        @keyup.enter="registerGuest"
-                        :disabled="isProcessing"
-                        style="padding: 12px 20px; font-size: 1em;"
-                    />
-                    <button @click="registerGuest" :disabled="isProcessing">Ajouter invité</button>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input 
+                            v-model="guestName" 
+                            placeholder="Nom de l'invité"
+                            type="text"
+                            @keyup.enter="registerGuest"
+                            :disabled="isProcessing"
+                            style="padding: 12px 20px; font-size: 1em;"
+                        />
+                        <button @click="registerGuest" :disabled="isProcessing" style="padding: 15px 40px; font-size: 1.2em; font-weight: 600;">Invité</button>
+                    </div>
                 </div>
                 
                 <p v-if="errorMessage && currentUser" class="error" style="text-align: center;">{{ errorMessage }}</p>
