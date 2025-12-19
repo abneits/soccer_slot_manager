@@ -420,6 +420,13 @@
                     </div>
                 </div>
                 
+                <!-- Message for non-logged users -->
+                <div v-if="!currentUser" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                    <p style="margin: 0; font-size: 1.1em; font-weight: 500;">
+                        🔒 Connectez-vous pour vous inscrire au match
+                    </p>
+                </div>
+                
                 <!-- Registration forms section - moved to top -->
                 <div v-if="currentUser && slot.player_count < 10" class="registration-section">
                     <div v-if="!isUserRegistered">
@@ -468,12 +475,6 @@
                         </tr>
                     </tbody>
                 </table>
-                
-                <div v-else-if="!currentUser">
-                    <p style="color: #666; font-style: italic; margin-top: 20px;">
-                        Connectez-vous pour vous inscrire au match
-                    </p>
-                </div>
             </div>
         </div>
         
