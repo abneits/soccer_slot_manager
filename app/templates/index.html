@@ -869,7 +869,16 @@
                     }
                     
                     try {
-                        const response = await fetch(`/api/register?username=${this.currentUser.username}`, {
+                        // Get test parameter from URL if present
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const testParam = urlParams.get('test_registration_open');
+                        
+                        let url = `/api/register?username=${this.currentUser.username}`;
+                        if (testParam !== null) {
+                            url += `&test_registration_open=${testParam}`;
+                        }
+                        
+                        const response = await fetch(url, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ name: this.currentUser.username })
@@ -897,7 +906,16 @@
                     }
                     
                     try {
-                        const response = await fetch(`/api/register-guest?username=${this.currentUser.username}`, {
+                        // Get test parameter from URL if present
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const testParam = urlParams.get('test_registration_open');
+                        
+                        let url = `/api/register-guest?username=${this.currentUser.username}`;
+                        if (testParam !== null) {
+                            url += `&test_registration_open=${testParam}`;
+                        }
+                        
+                        const response = await fetch(url, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ guestName: this.guestName })

@@ -275,10 +275,11 @@ async def get_current_slot(test_registration_open: Optional[bool] = None):
 
 
 @app.post("/api/register", response_model=SlotResponse)
-async def register_player(registration: PlayerRegistration, username: str):
+async def register_player(registration: PlayerRegistration, username: str, test_registration_open: Optional[bool] = None):
     """Register authenticated user to the current slot"""
-    # Check if registration is allowed
-    if not is_registration_open():
+    # Check if registration is allowed (allow override for testing)
+    registration_open = test_registration_open if test_registration_open is not None else is_registration_open()
+    if not registration_open:
         raise HTTPException(status_code=403, detail="Les inscriptions sont fermées. Elles sont ouvertes du lundi 12h au mercredi 20h.")
     
     # Verify user is authenticated
@@ -347,10 +348,11 @@ async def register_player(registration: PlayerRegistration, username: str):
 
 
 @app.post("/api/register-guest", response_model=SlotResponse)
-async def register_guest(guest: GuestRegistration, username: str):
+async def register_guest(guest: GuestRegistration, username: str, test_registration_open: Optional[bool] = None):
     """Register a guest player (added by authenticated user)"""
-    # Check if registration is allowed
-    if not is_registration_open():
+    # Check if registration is allowed (allow override for testing)
+    registration_open = test_registration_open if test_registration_open is not None else is_registration_open()
+    if not registration_open:
         raise HTTPException(status_code=403, detail="Les inscriptions sont fermées. Elles sont ouvertes du lundi 12h au mercredi 20h.")
     
     users = get_users_collection()
