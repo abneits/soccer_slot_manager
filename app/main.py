@@ -378,7 +378,8 @@ async def register_guest(guest: GuestRegistration, username: str):
     
     # Generate unique guest_id (use timestamp + name hash for uniqueness)
     import hashlib
-    guest_id = f"guest_{hashlib.md5(f\"{guest.guestName}{datetime.now().timestamp()}\".encode()).hexdigest()[:8]}"
+    guest_str = f"{guest.guestName}{datetime.now().timestamp()}"
+    guest_id = f"guest_{hashlib.md5(guest_str.encode()).hexdigest()[:8]}"
     
     # Add guest with invitator reference
     await collection.update_one(
