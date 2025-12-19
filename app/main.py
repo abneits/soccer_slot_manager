@@ -190,9 +190,12 @@ async def admin_page(request: Request):
 # =============================================================================
 
 @app.get("/api/current-slot", response_model=SlotResponse)
-async def get_current_slot():
+async def get_current_slot(test_registration_open: Optional[bool] = None):
     """
     Get or create the current slot for the next Wednesday at 19:00.
+    
+    Args:
+        test_registration_open: Optional bool to override registration status for testing
     
     Returns:
         SlotResponse: Current slot data including date, players, and status
@@ -254,6 +257,9 @@ async def get_current_slot():
             if guest_match:
                 teamB_details.append({"id": player_id, "name": f"(Invité) {guest_match['name']}", "type": "guest"})
     
+    # Determine registration status (allow override for testing)
+    registration_open = test_registration_open if test_registration_open is not None else is_registration_open()
+    
     return SlotResponse(
         date=slot_doc["date"].isoformat(),
         players=all_players,
@@ -264,7 +270,7 @@ async def get_current_slot():
         teamB=teamB_details,
         teamAScore=slot_doc.get("teamAScore"),
         teamBScore=slot_doc.get("teamBScore"),
-        isRegistrationOpen=is_registration_open()
+        isRegistrationOpen=registration_open
     )
 
 
