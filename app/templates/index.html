@@ -387,7 +387,7 @@
             <div class="auth-section">
                 <span v-if="currentUser">
                     Connecté en tant que: <strong>{{ currentUser.username }}</strong> ({{ currentUser.role }})
-                    <a v-if="currentUser.role === 'admin'" href="/admin" class="admin-link">Tableau de bord admin</a>
+                    <button v-if="currentUser.role === 'admin'" @click="window.location.href='/admin'" style="margin-left: 10px;">Admin</button>
                     <button @click="showChangePinModal = true" style="margin-left: 10px;">Changer le PIN</button>
                     <button @click="logout" style="margin-left: 10px;">Déconnexion</button>
                 </span>
@@ -438,7 +438,7 @@
                             type="text"
                             @keyup.enter="registerGuest"
                             :disabled="isProcessing"
-                            style="padding: 12px 20px; font-size: 1em;"
+                            style="padding: 12px 20px; font-size: 1em; width: 150px;"
                         />
                         <button @click="registerGuest" :disabled="isProcessing" style="padding: 15px 40px; font-size: 1.2em; font-weight: 600;">Invité</button>
                     </div>
