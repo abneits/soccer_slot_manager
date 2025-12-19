@@ -420,31 +420,7 @@
                     </div>
                 </div>
                 
-                <table>
-                    <thead>
-                        <tr>
-                            <th>N°</th>
-                            <th>Joueur</th>
-                            <th v-if="currentUser">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="index in 10" :key="index">
-                            <td>{{ index }}</td>
-                            <td>{{ slot.players[index - 1] || '-' }}</td>
-                            <td v-if="currentUser">
-                                <button 
-                                    v-if="slot.players[index - 1] && canDelete(slot.players[index - 1])"
-                                    @click="deletePlayer(slot.players[index - 1])"
-                                    class="delete-btn"
-                                >
-                                    ✕ Supprimer
-                                </button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-                
+                <!-- Registration forms section - moved to top -->
                 <div v-if="currentUser && slot.player_count < 10" class="registration-section">
                     <div v-if="!isUserRegistered">
                         <button @click="registerSelf">M'inscrire</button>
@@ -458,11 +434,40 @@
                                 placeholder="Nom de l'invité"
                                 type="text"
                                 @keyup.enter="registerGuest"
+                                :disabled="isProcessing"
                             />
+                            <button @click="registerGuest" :disabled="isProcessing">Ajouter invité</button>
                         </div>
-                        <button @click="registerGuest">Ajouter l'invité</button>
+                        <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
                     </div>
                 </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>N°</th>
+                            <th>Joueur</th>
+                            <th>Date d'inscription</th>
+                            <th v-if="currentUser">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="index in 10" :key="index">
+                            <td>{{ index }}</td>
+                            <td>{{ slot.players[index - 1] || '-' }}</td>
+                            <td>{{ slot.timestamps[index - 1] ? formatDateTime(slot.timestamps[index - 1]) : '-' }}</td>
+                            <td v-if="currentUser">
+                                <button 
+                                    v-if="slot.players[index - 1] && canDelete(slot.players[index - 1])"
+                                    @click="deletePlayer(slot.players[index - 1])"
+                                    class="delete-btn"
+                                >
+                                    ✕ Supprimer
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
                 
                 <div v-else-if="!currentUser">
                     <p style="color: #666; font-style: italic; margin-top: 20px;">
@@ -790,6 +795,17 @@
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                },
+                formatDateTime(isoString) {
+                    if (!isoString) return '-';
+                    const date = new Date(isoString);
+                    return date.toLocaleString('fr-FR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
                         hour: '2-digit',
                         minute: '2-digit'
                     });

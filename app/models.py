@@ -43,6 +43,7 @@ class SlotResponse(BaseModel):
     players: List[str] = Field(..., description="List of player names")
     player_count: int = Field(..., description="Current number of players")
     max_players: int = Field(default=10, description="Maximum allowed players")
+    timestamps: List[str] = Field(default_factory=list, description="Registration timestamps in ISO format")
 
 
 class User(BaseModel):

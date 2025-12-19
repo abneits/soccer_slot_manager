@@ -190,11 +190,17 @@ async def get_current_slot():
     guests_list = [f"(Invité) {g['name']} [par {g['invitedBy']}]" for g in slot_doc.get("guests", [])]
     all_players = players_list + guests_list
     
+    # Get timestamps
+    player_timestamps = [p.get("registeredAt", slot_doc["date"]).isoformat() if isinstance(p.get("registeredAt"), datetime) else p.get("registeredAt", slot_doc["date"].isoformat()) for p in slot_doc.get("players", [])]
+    guest_timestamps = [g.get("registeredAt", slot_doc["date"]).isoformat() if isinstance(g.get("registeredAt"), datetime) else g.get("registeredAt", slot_doc["date"].isoformat()) for g in slot_doc.get("guests", [])]
+    all_timestamps = player_timestamps + guest_timestamps
+    
     return SlotResponse(
         date=slot_doc["date"].isoformat(),
         players=all_players,
         player_count=len(all_players),
-        max_players=MAX_PLAYERS
+        max_players=MAX_PLAYERS,
+        timestamps=all_timestamps
     )
 
 
@@ -236,7 +242,8 @@ async def register_player(registration: PlayerRegistration, username: str):
         {"date": target_date},
         {"$push": {"players": {
             "user_id": str(user["_id"]),
-            "username": username
+            "username": username,
+            "registeredAt": datetime.now()
         }}}
     )
     
@@ -247,11 +254,16 @@ async def register_player(registration: PlayerRegistration, username: str):
     players_list = [p["username"] for p in updated_slot.get("players", [])]
     guests_list = [f"(Invité) {g['name']} [par {g['invitedBy']}]" for g in updated_slot.get("guests", [])]
     
+    player_timestamps = [p.get("registeredAt", updated_slot["date"]).isoformat() if isinstance(p.get("registeredAt"), datetime) else p.get("registeredAt", updated_slot["date"].isoformat()) for p in updated_slot.get("players", [])]
+    guest_timestamps = [g.get("registeredAt", updated_slot["date"]).isoformat() if isinstance(g.get("registeredAt"), datetime) else g.get("registeredAt", updated_slot["date"].isoformat()) for g in updated_slot.get("guests", [])]
+    all_timestamps = player_timestamps + guest_timestamps
+    
     return SlotResponse(
         date=updated_slot["date"].isoformat(),
         players=players_list + guests_list,
         player_count=total_registered,
-        max_players=MAX_PLAYERS
+        max_players=MAX_PLAYERS,
+        timestamps=all_timestamps
     )
 
 
@@ -293,7 +305,8 @@ async def register_guest(guest: GuestRegistration, username: str):
         {"$push": {"guests": {
             "name": guest.guestName,
             "invitedBy_id": str(user["_id"]),
-            "invitedBy": username
+            "invitedBy": username,
+            "registeredAt": datetime.now()
         }}}
     )
     
@@ -304,11 +317,16 @@ async def register_guest(guest: GuestRegistration, username: str):
     players_list = [p["username"] for p in updated_slot.get("players", [])]
     guests_list = [f"(Invité) {g['name']} [par {g['invitedBy']}]" for g in updated_slot.get("guests", [])]
     
+    player_timestamps = [p.get("registeredAt", updated_slot["date"]).isoformat() if isinstance(p.get("registeredAt"), datetime) else p.get("registeredAt", updated_slot["date"].isoformat()) for p in updated_slot.get("players", [])]
+    guest_timestamps = [g.get("registeredAt", updated_slot["date"]).isoformat() if isinstance(g.get("registeredAt"), datetime) else g.get("registeredAt", updated_slot["date"].isoformat()) for g in updated_slot.get("guests", [])]
+    all_timestamps = player_timestamps + guest_timestamps
+    
     return SlotResponse(
         date=updated_slot["date"].isoformat(),
         players=players_list + guests_list,
         player_count=total_registered,
-        max_players=MAX_PLAYERS
+        max_players=MAX_PLAYERS,
+        timestamps=all_timestamps
     )
 
 
@@ -373,11 +391,16 @@ async def unregister_player(player_name: str, username: str):
     players_list = [p["username"] for p in updated_slot.get("players", [])]
     guests_list = [f"(Invité) {g['name']} [par {g['invitedBy']}]" for g in updated_slot.get("guests", [])]
     
+    player_timestamps = [p.get("registeredAt", updated_slot["date"]).isoformat() if isinstance(p.get("registeredAt"), datetime) else p.get("registeredAt", updated_slot["date"].isoformat()) for p in updated_slot.get("players", [])]
+    guest_timestamps = [g.get("registeredAt", updated_slot["date"]).isoformat() if isinstance(g.get("registeredAt"), datetime) else g.get("registeredAt", updated_slot["date"].isoformat()) for g in updated_slot.get("guests", [])]
+    all_timestamps = player_timestamps + guest_timestamps
+    
     return SlotResponse(
         date=updated_slot["date"].isoformat(),
         players=players_list + guests_list,
         player_count=total_registered,
-        max_players=MAX_PLAYERS
+        max_players=MAX_PLAYERS,
+        timestamps=all_timestamps
     )
 
 
@@ -521,6 +544,28 @@ async def delete_user(user_id: str, admin_username: str):
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
     
     return {"success": True}
+
+
+@app.post("/api/admin/users/{user_id}/reset-pin")
+async def admin_reset_user_pin(user_id: str, admin_username: str):
+    """Reset a user's PIN to 0000 (admin only)"""
+    users = get_users_collection()
+    
+    # Verify admin
+    admin = await users.find_one({"username": admin_username, "role": "admin"})
+    if not admin:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    
+    # Update PIN
+    result = await users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"pin": "0000"}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    
+    return {"success": True, "message": "Code PIN réinitialisé à 0000"}
 
 
 @app.post("/api/admin/generate-invite", response_model=InviteTokenResponse)

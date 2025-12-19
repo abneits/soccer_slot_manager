@@ -233,6 +233,7 @@
                         <td>{{ user.invitedBy || '-' }}</td>
                         <td>
                             <div class="action-buttons">
+                                <button class="warning" @click="resetUserPin(user)">Réinitialiser PIN</button>
                                 <button class="danger" @click="deleteUser(user)">Supprimer</button>
                             </div>
                         </td>
@@ -253,7 +254,6 @@
                     <strong>Expire le:</strong> {{ formatDate(generatedToken.expiresAt) }}
                 </div>
                 <div class="button-group">
-                    <button @click="copyToken">Copier le code</button>
                     <button class="secondary" @click="showInviteModal = false; generatedToken = null;">Fermer</button>
                 </div>
             </div>
@@ -352,6 +352,29 @@
                         }
                     } catch (err) {
                         this.error = 'Erreur lors de la suppression';
+                        setTimeout(() => this.error = '', 3000);
+                    }
+                },
+                async resetUserPin(user) {
+                    if (!confirm(`Réinitialiser le code PIN de ${user.username} à 0000 ?`)) {
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`/api/admin/users/${user.id}/reset-pin?admin_username=${this.currentUser.username}`, {
+                            method: 'POST'
+                        });
+                        
+                        if (response.ok) {
+                            this.success = `Code PIN de ${user.username} réinitialisé à 0000`;
+                            setTimeout(() => this.success = '', 4000);
+                        } else {
+                            const data = await response.json();
+                            this.error = data.detail;
+                            setTimeout(() => this.error = '', 3000);
+                        }
+                    } catch (err) {
+                        this.error = 'Erreur lors de la réinitialisation du PIN';
                         setTimeout(() => this.error = '', 3000);
                     }
                 },
