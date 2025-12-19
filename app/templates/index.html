@@ -387,7 +387,7 @@
             <div class="auth-section">
                 <span v-if="currentUser">
                     Connecté en tant que: <strong>{{ currentUser.username }}</strong> ({{ currentUser.role }})
-                    <button v-if="currentUser.role === 'admin'" @click="window.location.href='/admin'" style="margin-left: 10px;">Admin</button>
+                    <button v-if="currentUser.role === 'admin'" @click="goToAdmin" style="margin-left: 10px;">Admin</button>
                     <button @click="showChangePinModal = true" style="margin-left: 10px;">Changer le PIN</button>
                     <button @click="logout" style="margin-left: 10px;">Déconnexion</button>
                 </span>
@@ -721,6 +721,9 @@
                     localStorage.removeItem('currentUser');
                     this.success = 'Déconnexion réussie';
                     setTimeout(() => this.success = '', 3000);
+                },
+                goToAdmin() {
+                    window.location.href = '/admin';
                 },
                 async registerSelf() {
                     if (this.isUserRegistered) {
